@@ -1,0 +1,9 @@
+.main-nav a.active {
+	background-color: #efefef;
+}
+
+.top-nav a.active {
+	background-color: white;
+	color: #666;
+	border: none;
+}
