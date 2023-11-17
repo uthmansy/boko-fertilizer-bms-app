@@ -14,7 +14,7 @@ export default function ErrorPop({ children }) {
 				<div className="mx-3">
 					<span className="font-semibold text-red-500 dark:text-red-400">
 						Error
-					</span>
+						 </span>
 					<p className="text-sm text-gray-600 dark:text-gray-200">{children}</p>
 				</div>
 			</div>

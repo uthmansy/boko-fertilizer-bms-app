@@ -1,9 +1,17 @@
 .main-nav a.active {
-	background-color: #efefef;
+  @apply bg-teal-800;
+}
+
+.main-nav {
+  @apply text-white;
+}
+
+.main-nav svg path {
+  @apply stroke-teal-500;
 }
 
 .top-nav a.active {
-	background-color: white;
-	color: #666;
-	border: none;
+  background-color: white;
+  color: #666;
+  border: none;
 }
