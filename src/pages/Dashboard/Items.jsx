@@ -2,9 +2,10 @@ import { Route, Routes } from "react-router-dom";
 import TopNavBar from "../../components/TopNavBar";
 import { useState } from "react";
 import { useEffect } from "react";
-import { getItems } from "../../util/crud";
+import { createNewItem, getItems } from "../../util/crud";
 import Spinner from "../../components/Spinner";
 import InfoAlert from "../../components/alerts/InfoAlert";
+import Modal from "../../components/Modal";
 
 export default function Items() {
   return (
@@ -43,7 +44,6 @@ const AllItems = () => {
       try {
         setIsLoading(true);
         const result = await getItems();
-        console.log(result);
         setIsLoading(false);
         if (result.length === 0) setIsEmpty(true);
         setAllItems(result);
@@ -111,5 +111,93 @@ const ItemsList = ({ items, type }) => {
 };
 
 const CreateNew = () => {
-  return "lets create nwe heare";
+  const [isLoading, setIsLoading] = useState(false);
+  const [modalData, setModalData] = useState({
+    isOpen: false,
+    message: "",
+    isError: false,
+  });
+  const [formIsValid, setFormIsValid] = useState(false);
+
+  const [itemName, setItemName] = useState("");
+  const [type, setType] = useState("raw"); // Default to "raw"
+
+  const checkFormValidity = () => {
+    const isItemNameValid = itemName.trim() !== "";
+    setFormIsValid(isItemNameValid && type); // Validate both item name and type
+  };
+
+  const handleInputChange = (e) => {
+    const updatedName = e.target.value.replace(/\s/g, "-");
+    setItemName(updatedName);
+    checkFormValidity();
+  };
+
+  const handleTypeChange = (e) => {
+    setType(e.target.value);
+    checkFormValidity();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setIsLoading(true);
+      await createNewItem(itemName, type); // Pass itemName and type to createNewItem
+      setModalData({
+        isOpen: true,
+        message: "Successfully Created New Item",
+        isError: false,
+      });
+    } catch (error) {
+      console.error(error);
+      setIsLoading(false); // Set isLoading to false on error
+      setModalData({
+        isOpen: true,
+        message: error.message,
+        isError: true,
+      });
+    }
+  };
+
+  return (
+    <div className='mx-auto bg-white shadow-lg rounded-lg w-full p-5'>
+      <form onSubmit={handleSubmit} className='mb-4'>
+        <label className='block text-sm font-medium text-gray-700'>
+          Item Name:
+          <input
+            type='text'
+            value={itemName}
+            onChange={handleInputChange}
+            className='mt-1 p-2 border border-gray-300 rounded-md w-full'
+            placeholder='Enter item name'
+          />
+        </label>
+        <label className='block text-sm font-medium text-gray-700 mt-2'>
+          Item Type:
+          <select
+            value={type}
+            onChange={handleTypeChange}
+            className='mt-1 p-2 border border-gray-300 rounded-md w-full'
+          >
+            <option value='raw'>Raw</option>
+            <option value='product'>Product</option>
+          </select>
+        </label>
+        <button
+          type='submit'
+          disabled={!formIsValid || isLoading}
+          className='mt-2 p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring focus:border-blue-300'
+        >
+          {isLoading ? "Loading..." : "Add Item"}
+        </button>
+      </form>
+      {modalData.isOpen && (
+        <Modal
+          modalData={modalData}
+          setModalData={setModalData}
+          onClose={() => setIsLoading(false)}
+        />
+      )}
+    </div>
+  );
 };

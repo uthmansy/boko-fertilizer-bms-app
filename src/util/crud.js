@@ -11,6 +11,7 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
   writeBatch,
@@ -884,5 +885,71 @@ export const getItems = async () => {
     return items;
   } catch (error) {
     throw new Error(`Error getting items: ${error.message}`);
+  }
+};
+
+export const createNewItem = async (name, type) => {
+  try {
+    // Validate type
+    if (type !== "raw" && type !== "product") {
+      throw new Error(
+        'Invalid item type. Type must be either "raw" or "product".'
+      );
+    }
+
+    // Check for duplicate document ID
+    const existingItemQuery = query(
+      collection(db, "items"),
+      where("name", "==", name)
+    );
+
+    const existingItemSnapshot = await getDocs(existingItemQuery);
+
+    if (!existingItemSnapshot.empty) {
+      throw new Error("An item with the same name already exists.");
+    }
+
+    // Get the last code number based on type
+    const codeQuery = query(
+      collection(db, "items"),
+      where("type", "==", type),
+      orderBy("code", "desc"),
+      limit(1)
+    );
+    const codeSnapshot = await getDocs(codeQuery);
+
+    let lastCode = "00"; // Default starting code
+
+    if (!codeSnapshot.empty) {
+      const lastItem = codeSnapshot.docs[0].data();
+      lastCode = lastItem.code;
+    }
+
+    // Increment the code for the new item
+    const newCode = (parseInt(lastCode, 10) + 1).toString().padStart(2, "0");
+
+    // Create the new item
+    const newItem = {
+      name: name,
+      balance: 0,
+      availableInProduction: 0,
+      dispatched: 0,
+      dispatchedToProduction: 0,
+      received: 0,
+      totalUtilization: 0,
+      quantityProduced: 0,
+      deliveredToStore: 0,
+      code:
+        type === "raw"
+          ? newCode
+          : String.fromCharCode(lastCode.charCodeAt(0) + 1) +
+            String.fromCharCode(lastCode.charCodeAt(1) + 1),
+      type,
+    };
+
+    // Add the new item to the "items" collection
+    await setDoc(doc(db, "items", name), newItem);
+  } catch (error) {
+    throw new Error(`Error creating new item: ${error.message}`);
   }
 };
