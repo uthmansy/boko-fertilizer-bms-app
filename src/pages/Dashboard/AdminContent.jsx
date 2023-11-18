@@ -5,6 +5,7 @@ import AccountingPurchases from "../../components/AccountingPurchases";
 import AdminTransit from "./AdminTransit";
 import InventoryTotalInventory from "./InventoryTotalInventory";
 import Items from "./Items";
+import AdminReceivedTrucks from "./AdminReceivedTrucks.jsx";
 
 export default function AdminContent() {
   const { user } = useAuth();
@@ -17,7 +18,7 @@ export default function AdminContent() {
         <Route path='/purchases/*' element={<AccountingPurchases />} />
         <Route path='/items/*' element={<Items />} />
         <Route path='/transit/*' element={<AdminTransit />} />
-        <Route path='/about' element={<div>About Page</div>} />
+        <Route path='/received-trucks' element={<AdminReceivedTrucks />} />
         <Route path='/contact' element={<div>Contact Page</div>} />
       </Routes>
     </div>
