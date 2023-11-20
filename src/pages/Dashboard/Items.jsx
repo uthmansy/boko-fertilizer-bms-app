@@ -6,8 +6,15 @@ import { createNewItem, getItems } from "../../util/crud";
 import Spinner from "../../components/Spinner";
 import InfoAlert from "../../components/alerts/InfoAlert";
 import Modal from "../../components/Modal";
+import { useMenu } from "../../contexts/menuContext";
 
 export default function Items() {
+  const { setIsMenuOpen } = useMenu();
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, []);
+
   return (
     <div>
       <TopNavBar
@@ -68,7 +75,7 @@ const AllItems = () => {
           Error Loading Items, Please Try Again..
         </div>
       ) : (
-        <div className='p-5 flex space-x-5'>
+        <div className='p-5 grid grid-cols-1 md:grid-cols-2 gap-2'>
           <ItemsList items={allItems} type='raw' />
           <ItemsList items={allItems} type='product' />
         </div>
@@ -79,7 +86,7 @@ const AllItems = () => {
 
 const ItemsList = ({ items, type }) => {
   return (
-    <div className='mb-8 w-1/2'>
+    <div className='mb-8'>
       <h2 className='text-2xl font-semibold mb-4 capitalize'>{type}</h2>
       <table className='min-w-full border border-slate-300'>
         <thead className='bg-slate-800 text-teal-500'>

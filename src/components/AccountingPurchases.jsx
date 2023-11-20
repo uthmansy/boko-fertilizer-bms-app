@@ -23,8 +23,18 @@ import RefreshButton from "./RefreshButton";
 import BackButton from "./BackButton";
 import InfoAlert from "./alerts/InfoAlert";
 import AddPaymentForm from "./AddPaymentForm";
+import ButtonPrimary from "./buttons/ButtonPrimary";
+import PrintDoc from "./PrintDoc";
+import IMAGES from "../assets/images/Images";
+import { useMenu } from "../contexts/menuContext";
 
 const AccountingPurchases = () => {
+  const { setIsMenuOpen } = useMenu();
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, []);
+
   return (
     <div>
       <TopNavBar
@@ -51,6 +61,7 @@ const CreateNew = () => {
   const [formData, setFormData] = useState({
     beneficiaryName: "",
     beneficiaryPhone: "",
+    pickUpLocation: "others",
     itemsPurchased: [{ itemId: "", quantity: 0, taken: 0 }],
     totalCost: "",
     date: "",
@@ -63,9 +74,13 @@ const CreateNew = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
 
+  const { user } = useAuth();
+  const { items } = useItems();
+
   const checkFormValidity = () => {
     const isBeneficiaryNameValid = formData.beneficiaryName.trim() !== "";
     const isBeneficiaryPhoneValid = formData.beneficiaryPhone.trim() !== "";
+    const isPickUpLocationValid = formData.pickUpLocation.trim() !== "";
     const isTotalCostValid = formData.totalCost.trim() !== "";
     const isDateValid = formData.date !== "";
     const isItemsPurchasedValid = formData.itemsPurchased.every(
@@ -76,7 +91,8 @@ const CreateNew = () => {
       isBeneficiaryNameValid &&
         isBeneficiaryPhoneValid &&
         isItemsPurchasedValid &&
-        isTotalCostValid
+        isTotalCostValid &&
+        isPickUpLocationValid
     );
   };
 
@@ -144,8 +160,6 @@ const CreateNew = () => {
     checkFormValidity(); // Trigger form validation check
   };
 
-  const { user } = useAuth();
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -155,6 +169,7 @@ const CreateNew = () => {
         beneficiaryName,
         beneficiaryPhone,
         itemsPurchased,
+        pickUpLocation,
         totalCost,
         date,
       } = formData;
@@ -162,6 +177,7 @@ const CreateNew = () => {
         beneficiaryName,
         beneficiaryPhone,
         itemsPurchased,
+        pickUpLocation,
         totalCost: moneyStringToNumber(totalCost),
         date,
         createdBy: user.name,
@@ -194,13 +210,12 @@ const CreateNew = () => {
     setFormData({
       beneficiaryName: "",
       beneficiaryPhone: "",
+      pickUpLocation: "others",
       itemsPurchased: [{ itemId: "", quantity: 0 }],
       totalCost: "",
       date: "",
     });
   };
-
-  const { items } = useItems();
 
   const renderSelect = (item, index) => (
     <div key={index} className='mb-4 p-4 border rounded-lg'>
@@ -273,6 +288,7 @@ const CreateNew = () => {
             className='w-full p-2 border rounded'
           />
         </div>
+
         <div className='mb-4'>
           <label className='block mb-2'>Items Purchased:</label>
           {formData.itemsPurchased.map((item, index) =>
@@ -388,7 +404,7 @@ const AllPurchases = () => {
           </div>
         }
       />
-      <Route exact path='/:transactionId' element={<TransactionSummary />} />
+      <Route exact path='/:transactionId/*' element={<TransactionSummary />} />
     </Routes>
   );
 };
@@ -406,7 +422,6 @@ function TransactionSummary() {
   const { transactionId } = useParams();
 
   useEffect(() => {
-    console.log(refresh);
     try {
       const fetchTransaction = async () => {
         setIsLoading(true);
@@ -417,176 +432,422 @@ function TransactionSummary() {
       fetchTransaction();
     } catch (error) {}
   }, [refresh]);
+
   return isLoading ? (
     <div className='h-20 w-full flex items-center justify-center'>
       <Spinner />
     </div>
   ) : (
-    <div className='overflow-hidden border border-gray-200 sm:rounded-lg container mx-auto p-4 bg-white rounded-md shadow-md'>
-      <div className='mb-5 flex space-x-2'>
-        <RefreshButton refresh={refresh} setRefresh={setRefresh} />
-        <BackButton />
-      </div>
-      <h1 className='text-xl font-bold mb-4'>Transaction Summary</h1>
-      <table className='min-w-full'>
-        <tbody className='bg-white divide-y divide-gray-200'>
-          <tr>
-            <td className='px-6 py-4'>
-              <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                Date
-              </p>
-              <p>{transaction?.date}</p>
-            </td>
-          </tr>
-          <tr>
-            <td className='px-6 py-4'>
-              <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                Created By
-              </p>
-              <p>{transaction?.createdBy}</p>
-            </td>
-          </tr>
-          <tr>
-            <td className='px-6 py-4'>
-              <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                Order Number
-              </p>
-              <p>{transaction?.orderNumber}</p>
-            </td>
-          </tr>
-          <tr>
-            <td className='px-6 py-4'>
-              <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                Beneficiary
-              </p>
-              <p>{transaction?.beneficiaryName}</p>
-            </td>
-          </tr>
-          <tr>
-            <td className='px-6 py-4'>
-              <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                Phone
-              </p>
-              <p>{transaction?.beneficiaryPhone}</p>
-            </td>
-          </tr>
-          <tr>
-            <td className='px-6 py-4'>
-              <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                Items Purchased
-              </p>
-              <ul>
-                {transaction?.itemsPurchased.map((item, index) => (
-                  <li className=' flex max-w-md justify-between' key={index}>
-                    <span className='font-bold'>{item.itemId}</span>
-                    <span className='font-bold text-green-500'>{`Quantity: ${item.quantity}`}</span>
-                    <span className='font-bold text-blue-500'>{`Quantity Taken: ${item.taken}`}</span>
-                    <span className='font-bold text-red-500'>{`Balance: ${
-                      item.quantity - item.taken
-                    }`}</span>
-                  </li>
-                ))}
-              </ul>
-            </td>
-          </tr>
+    <Routes>
+      <Route
+        path='/*'
+        element={
+          <div className='overflow-hidden border border-gray-200 sm:rounded-lg container mx-auto p-4 bg-white rounded-md shadow-md'>
+            <div className='mb-5 flex space-x-2'>
+              <RefreshButton refresh={refresh} setRefresh={setRefresh} />
+              <BackButton />
+              <Link to='print'>
+                <ButtonPrimary>Print</ButtonPrimary>
+              </Link>
+            </div>
+            <h1 className='text-xl font-bold mb-4'>Transaction Summary</h1>
+            <table className='min-w-full'>
+              <tbody className='bg-white divide-y divide-gray-200'>
+                <tr>
+                  <td className='px-6 py-4'>
+                    <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Date
+                    </p>
+                    <p>{transaction?.date}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td className='px-6 py-4'>
+                    <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Created By
+                    </p>
+                    <p>{transaction?.createdBy}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td className='px-6 py-4'>
+                    <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Order Number
+                    </p>
+                    <p>{transaction?.orderNumber}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td className='px-6 py-4'>
+                    <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Beneficiary
+                    </p>
+                    <p>{transaction?.beneficiaryName}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td className='px-6 py-4'>
+                    <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Phone
+                    </p>
+                    <p>{transaction?.beneficiaryPhone}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td className='px-6 py-4'>
+                    <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Items Purchased
+                    </p>
+                    <ul>
+                      {transaction?.itemsPurchased.map((item, index) => (
+                        <li
+                          className=' flex max-w-md justify-between'
+                          key={index}
+                        >
+                          <span className='font-bold'>{item.itemId}</span>
+                          <span className='font-bold text-green-500'>{`Quantity: ${item.quantity}`}</span>
+                          <span className='font-bold text-blue-500'>{`Quantity Taken: ${item.taken}`}</span>
+                          <span className='font-bold text-red-500'>{`Balance: ${
+                            item.quantity - item.taken
+                          }`}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </td>
+                </tr>
 
-          <tr>
-            <td className='px-6 py-4'>
-              <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                Total Cost
-              </p>
-              <p>{formatMoney(transaction?.totalCost)}</p>
-            </td>
-          </tr>
-          <tr>
-            <td className='px-6 py-4'>
-              <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                Total Paid
-              </p>
-              <p>{formatMoney(transaction?.totalPaid)}</p>
-            </td>
-          </tr>
-          <tr>
-            <td className='px-6 py-4'>
-              <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                Balance
-              </p>
-              <p>
-                {formatMoney(transaction?.totalCost - transaction?.totalPaid)}
-              </p>
-            </td>
-          </tr>
-          {transaction?.payments.length != 0 && (
-            <tr>
-              <td className='px-6 py-4'>
-                <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Payments
-                </p>
-                <table className='w-full border-collapse border rounded-lg text-sm my-5 bg-green-50'>
-                  <thead>
-                    <tr>
-                      <th className='p-3 bg-gray-500 text-white text-center'>
-                        SN
-                      </th>
-                      <th className='p-3 bg-gray-500 text-white text-center'>
-                        Date
-                      </th>
-                      <th className='p-3 text-left bg-gray-500 text-white'>
-                        Beneficiary
-                      </th>
-                      <th className='p-3 text-left bg-gray-500 text-white'>
-                        Account
-                      </th>
-                      <th className='p-3 text-left bg-gray-500 text-white'>
-                        Bank
-                      </th>
-                      <th className='p-3 text-left bg-gray-500 text-white'>
-                        Amount
-                      </th>
-                      <th className='p-3 text-left bg-gray-500 text-white'>
-                        Payment Reference
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transaction?.payments.map((payment, index) => (
-                      <tr
-                        key={payment.id}
-                        className='hover:bg-gray-100 border-b'
-                      >
-                        <td className='p-3 border-r text-center'>
-                          {index + 1}
-                        </td>
-                        <td className='p-3'>{payment.date}</td>
-                        <td className='p-3'>{payment.beneficiaryName}</td>
-                        <td className='p-3'>{payment.beneficiaryAccount}</td>
-                        <td className='p-3'>{payment.beneficiaryBank}</td>
-                        <td className='p-3'>{formatMoney(payment.amount)}</td>
-                        <td className='p-3'>{payment.paymentRef}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-      {transaction?.status != "completed" && (
-        <AddPaymentForm
-          transactionId={transactionId}
-          setModalData={setModalData}
-        />
-      )}
-      {modalData.isOpen && (
-        <Modal
-          modalData={modalData}
-          setModalData={setModalData}
-          onClose={() => setRefresh(refresh + 1)}
-        />
-      )}
-    </div>
+                <tr>
+                  <td className='px-6 py-4'>
+                    <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Total Cost
+                    </p>
+                    <p>{formatMoney(transaction?.totalCost)}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td className='px-6 py-4'>
+                    <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Total Paid
+                    </p>
+                    <p>{formatMoney(transaction?.totalPaid)}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td className='px-6 py-4'>
+                    <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Balance
+                    </p>
+                    <p>
+                      {formatMoney(
+                        transaction?.totalCost - transaction?.totalPaid
+                      )}
+                    </p>
+                  </td>
+                </tr>
+                {transaction?.payments.length != 0 && (
+                  <tr>
+                    <td className='px-6 py-4'>
+                      <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                        Payments
+                      </p>
+                      <table className='w-full border-collapse border rounded-lg text-sm my-5 bg-green-50'>
+                        <thead>
+                          <tr>
+                            <th className='p-3 bg-gray-500 text-white text-center'>
+                              SN
+                            </th>
+                            <th className='p-3 bg-gray-500 text-white text-center'>
+                              Date
+                            </th>
+                            <th className='p-3 text-left bg-gray-500 text-white'>
+                              Beneficiary
+                            </th>
+                            <th className='p-3 text-left bg-gray-500 text-white'>
+                              Account
+                            </th>
+                            <th className='p-3 text-left bg-gray-500 text-white'>
+                              Bank
+                            </th>
+                            <th className='p-3 text-left bg-gray-500 text-white'>
+                              Amount
+                            </th>
+                            <th className='p-3 text-left bg-gray-500 text-white'>
+                              Payment Reference
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {transaction?.payments.map((payment, index) => (
+                            <tr
+                              key={payment.id}
+                              className='hover:bg-gray-100 border-b'
+                            >
+                              <td className='p-3 border-r text-center'>
+                                {index + 1}
+                              </td>
+                              <td className='p-3'>{payment.date}</td>
+                              <td className='p-3'>{payment.beneficiaryName}</td>
+                              <td className='p-3'>
+                                {payment.beneficiaryAccount}
+                              </td>
+                              <td className='p-3'>{payment.beneficiaryBank}</td>
+                              <td className='p-3'>
+                                {formatMoney(payment.amount)}
+                              </td>
+                              <td className='p-3'>{payment.paymentRef}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {transaction?.status != "completed" && (
+              <AddPaymentForm
+                transactionId={transactionId}
+                setModalData={setModalData}
+              />
+            )}
+            {modalData.isOpen && (
+              <Modal
+                modalData={modalData}
+                setModalData={setModalData}
+                onClose={() => setRefresh(refresh + 1)}
+              />
+            )}
+          </div>
+        }
+      />
+      <Route path='/print' element={<PrintPage transaction={transaction} />} />
+    </Routes>
   );
 }
+
+const PrintPage = ({ transaction }) => {
+  return (
+    <PrintDoc>
+      <div className='max-w-full'>
+        {/* A4 Paper Size */}
+        <div
+          className='bg-white p-8'
+          style={{ width: "8.3in", height: "11.7in" }}
+        >
+          <div className='mb-10 flex items-center flex-col'>
+            <img className='w-24' src={IMAGES.logo} alt='logo' />
+
+            <h1 className='font-black text-3xl uppercase text-center'>
+              Boko Fertilizer Transaction Record
+            </h1>
+            <div className=''>
+              No.60/61 UNGOGO ROAD KANO, KANO STATE UNGOGO, 700105, Kano
+            </div>
+          </div>
+          <div className='mb-5'>
+            <div className='w-1/2'></div>
+            <div className='w-full mb-5'>
+              <table class=' w-full border border-gray-500 text-xs text-left text-gray-500 '>
+                <tbody>
+                  <tr class=' border-b border-gray-500'>
+                    <td
+                      scope='row'
+                      class='px-2 bg-gray-100 border-r border-gray-500 py-2 font-medium text-gray-900 whitespace-nowrap '
+                    >
+                      Transaction Type
+                    </td>
+                    <td class='px-2 py-2 capitalize'>{transaction?.type}</td>
+                  </tr>
+                  <tr class=' border-b border-gray-500'>
+                    <td
+                      scope='row'
+                      class='bg-gray-100 border-r border-gray-500 px-2 py-2 font-medium text-gray-900 whitespace-nowrap '
+                    >
+                      Order Date
+                    </td>
+                    <td class='px-2 py-2'>{transaction?.date}</td>
+                  </tr>
+                  <tr class=' border-b border-gray-500'>
+                    <td
+                      scope='row'
+                      class='bg-gray-100 border-r border-gray-500 px-2 py-2 font-medium text-gray-900 whitespace-nowrap '
+                    >
+                      Order Number
+                    </td>
+                    <td class='px-2 py-2'>{transaction?.orderNumber}</td>
+                  </tr>
+                  <tr class=' border-b border-gray-500'>
+                    <td
+                      scope='row'
+                      class='bg-gray-100 border-r border-gray-500 px-2 py-2 font-medium text-gray-900 whitespace-nowrap '
+                    >
+                      Created By
+                    </td>
+                    <td class='px-2 py-2'>{transaction?.createdBy}</td>
+                  </tr>
+                  <tr class=' border-b border-gray-500'>
+                    <td
+                      scope='row'
+                      class='bg-gray-100 border-r border-gray-500 px-2 py-2 font-medium text-gray-900 whitespace-nowrap '
+                    >
+                      Beneficiary
+                    </td>
+                    <td class='px-2 py-2'>{transaction?.beneficiaryName}</td>
+                  </tr>
+                  <tr class=' border-b border-gray-500'>
+                    <td
+                      scope='row'
+                      class='bg-gray-100 border-r border-gray-500 px-2 py-2 font-medium text-gray-900 whitespace-nowrap '
+                    >
+                      Beneficiary Phone
+                    </td>
+                    <td class='px-2 py-2'>{transaction?.beneficiaryPhone}</td>
+                  </tr>
+                  <tr class=' border-b border-gray-500'>
+                    <td
+                      scope='row'
+                      class='bg-gray-100 border-r border-gray-500 px-2 py-2 font-medium text-gray-900 whitespace-nowrap '
+                    >
+                      Total Cost
+                    </td>
+                    <td class='px-2 py-2'>
+                      {formatMoney(transaction?.totalCost)}
+                    </td>
+                  </tr>
+                  <tr class=' border-b border-gray-500'>
+                    <td
+                      scope='row'
+                      class='bg-gray-100 border-r border-gray-500 px-2 py-2 font-medium text-gray-900 whitespace-nowrap '
+                    >
+                      Total Paid
+                    </td>
+                    <td class='px-2 py-2'>
+                      {formatMoney(transaction?.totalPaid)}
+                    </td>
+                  </tr>
+                  <tr class=' border-b border-gray-500'>
+                    <td
+                      scope='row'
+                      class='bg-gray-100 border-r border-gray-500 px-2 py-2 font-medium text-gray-900 whitespace-nowrap '
+                    >
+                      Balance
+                    </td>
+                    <td class='px-2 py-2'>
+                      {formatMoney(
+                        transaction?.totalCost - transaction?.totalPaid
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className='w-full mb-5'>
+              <p className='text-xs font-medium text-gray-500 uppercase tracking-wider mb-5'>
+                Items
+              </p>
+              <table class=' w-full border border-gray-500 text-xs text-left text-gray-500 '>
+                <thead>
+                  <tr class=' border-b border-gray-500 bg-gray-500'>
+                    <td
+                      scope='row'
+                      class='px-2 border-r border-gray-500 py-2 font-medium text-white whitespace-nowrap '
+                    >
+                      Item
+                    </td>
+                    <td class='px-2 py-2 capitalize border-r border-gray-500 text-white'>
+                      Quantity
+                    </td>
+                    <td class='px-2 py-2 capitalize border-r border-gray-500 text-white'>
+                      Quantity Taken
+                    </td>
+                    <td class='px-2 py-2 capitalize border-r border-gray-500 text-white'>
+                      Balance
+                    </td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transaction?.itemsPurchased.map((item, index) => (
+                    <tr key={index} class=' border-b border-gray-500'>
+                      <td
+                        scope='row'
+                        class='px-2 bg-gray-100 border-r border-gray-500 py-2 font-medium text-gray-900 whitespace-nowrap '
+                      >
+                        {item.itemId}
+                      </td>
+                      <td class='px-2 py-2 capitalize border-r border-gray-500'>
+                        {item.quantity}
+                      </td>
+                      <td class='px-2 py-2 capitalize border-r border-gray-500'>
+                        {item.taken}
+                      </td>
+                      <td class='px-2 py-2 capitalize border-r border-gray-500'>
+                        {item.quantity - item.taken}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              {transaction?.payments.length != 0 && (
+                <>
+                  {" "}
+                  <p className='text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Payments
+                  </p>
+                  <table className='w-full border-collapse border rounded-lg text-sm my-5 bg-green-50'>
+                    <thead>
+                      <tr>
+                        <th className='p-3 bg-gray-500 text-white text-center'>
+                          SN
+                        </th>
+                        <th className='p-3 bg-gray-500 text-white text-center'>
+                          Date
+                        </th>
+                        <th className='p-3 text-left bg-gray-500 text-white'>
+                          Beneficiary
+                        </th>
+                        <th className='p-3 text-left bg-gray-500 text-white'>
+                          Account
+                        </th>
+                        <th className='p-3 text-left bg-gray-500 text-white'>
+                          Bank
+                        </th>
+                        <th className='p-3 text-left bg-gray-500 text-white'>
+                          Amount
+                        </th>
+                        <th className='p-3 text-left bg-gray-500 text-white'>
+                          Payment Reference
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transaction?.payments.map((payment, index) => (
+                        <tr
+                          key={payment.id}
+                          className='hover:bg-gray-100 border-b'
+                        >
+                          <td className='p-3 border-r text-center'>
+                            {index + 1}
+                          </td>
+                          <td className='p-3'>{payment.date}</td>
+                          <td className='p-3'>{payment.beneficiaryName}</td>
+                          <td className='p-3'>{payment.beneficiaryAccount}</td>
+                          <td className='p-3'>{payment.beneficiaryBank}</td>
+                          <td className='p-3'>{formatMoney(payment.amount)}</td>
+                          <td className='p-3'>{payment.paymentRef}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </PrintDoc>
+  );
+};
 
 export default AccountingPurchases;

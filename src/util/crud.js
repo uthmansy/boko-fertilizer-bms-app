@@ -686,9 +686,9 @@ export const fetchAllItems = async () => {
     const querySnapshot = await getDocs(collection(db, "items"));
 
     querySnapshot.forEach((doc) => {
-      const { name, code } = doc.data();
-      if (name && code) {
-        items.push({ name, code });
+      const { name, code, type } = doc.data();
+      if (name && code && type) {
+        items.push({ name, code, type });
       }
     });
 

@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { getTrucksWithFilter } from "../../util/crud";
 import InfoAlert from "../../components/alerts/InfoAlert";
 import Spinner from "../../components/Spinner";
+import ButtonPrimary from "../../components/buttons/ButtonPrimary";
+import DefaultTable from "../../components/tables/DefaultTable";
+import { formatTimestamp } from "../../util/functions";
+import { useMenu } from "../../contexts/menuContext";
 
 export default function AdminReceivedTrucks() {
   //Loading, empty, error states
@@ -11,8 +15,13 @@ export default function AdminReceivedTrucks() {
 
   //all received trucks
   const [allTrucks, setAllTrucks] = useState([]);
+  const [filteredTrucks, setFilteredTrucks] = useState([]);
 
-  const [currentTab, setCurrentTab] = useState(1);
+  const { setIsMenuOpen } = useMenu();
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, []);
 
   useEffect(() => {
     const fetchAllReceivedTrucks = async () => {
@@ -23,9 +32,38 @@ export default function AdminReceivedTrucks() {
           "received",
           "dateReceived"
         );
-        console.log(result);
         if (result.length === 0) setIsEmpty(true);
-        setAllTrucks(result);
+        const mappedResult = result.map((truck, index) => {
+          // Extract only the desired key-value pairs
+          const {
+            truckNumber,
+            origin,
+            destination,
+            otherDestination,
+            waybillNumber,
+            orderNumber,
+            dateReceived,
+            item,
+          } = truck;
+          // Create a new object with the extracted key-value pairs
+          const data = {
+            SN: index + 1,
+            truckNumber,
+            origin,
+            destination,
+            item,
+            waybillNumber,
+            orderNumber: orderNumber || "NIL",
+            dateReceived: formatTimestamp(dateReceived),
+          };
+
+          if (destination === "Others") data.destination = otherDestination;
+
+          return data;
+        });
+
+        setAllTrucks(mappedResult);
+        setFilteredTrucks(mappedResult);
         setIsLoading(false);
       } catch (error) {
         setIsLoading(false);
@@ -34,6 +72,44 @@ export default function AdminReceivedTrucks() {
     };
     fetchAllReceivedTrucks();
   }, []);
+
+  const trucksHeader = [
+    "SN",
+    "Truck Number",
+    "Origin",
+    "Destination",
+    "Item",
+    "Waybill Number",
+    "Order Number",
+    "Date Received",
+  ];
+
+  const filterDestination = (destination) => {
+    const filteredTrucks = allTrucks.filter((truck) => {
+      return destination === "Boko Fertilizer"
+        ? truck.destination === "Boko Fertilizer"
+        : truck.destination !== "Boko Fertilizer";
+    });
+    setFilteredTrucks(filteredTrucks);
+  };
+  const filterOrigin = (origin) => {
+    const filteredTrucks = allTrucks.filter((truck) => {
+      return origin === "Port Harcourt"
+        ? truck.origin === "Port Harcourt"
+        : origin === "Boko Fertilizer"
+        ? truck.origin === "Boko Fertilizer"
+        : truck.origin !== "Boko Fertilizer" &&
+          truck.origin !== "Port Harcourt";
+    });
+    setFilteredTrucks(filteredTrucks);
+  };
+
+  const filterItem = (item) => {
+    const filteredTrucks = allTrucks.filter((truck) => {
+      return truck.item === item;
+    });
+    setFilteredTrucks(filteredTrucks);
+  };
 
   return isLoading ? (
     <div className='flex items-center justify-center h-48 w-full'>
@@ -46,26 +122,35 @@ export default function AdminReceivedTrucks() {
       Error Loading Trucks, Please Try Again.
     </div>
   ) : (
-    <div>
-      <div className='flex space-x-5 font-bold'>
-        <button
-          onClick={() => setCurrentTab(1)}
-          className='px-4 py-3 bg-teal-600 text-slate-800 uppercase text-sm'
-        >
-          Boko Fertilizer
-        </button>
-        <button
-          onClick={() => setCurrentTab(2)}
-          className='px-4 py-3 bg-teal-600 text-slate-800 uppercase text-sm'
-        >
-          Other
-        </button>
-      </div>
-      {currentTab === 1 ? <BokoDestination allTrucks={allTrucks} /> : "2"}
-    </div>
+    <>
+      <nav className='mb-5 grid grid-cols-3 md:grid-cols-6 gap-2'>
+        <ButtonPrimary onClick={() => setFilteredTrucks(allTrucks)}>
+          All
+        </ButtonPrimary>
+        <ButtonPrimary onClick={() => filterDestination("Boko Fertilizer")}>
+          To Boko
+        </ButtonPrimary>
+        <ButtonPrimary onClick={() => filterDestination("Others")}>
+          To Others
+        </ButtonPrimary>
+        <ButtonPrimary onClick={() => filterOrigin("Port Harcourt")}>
+          From PH
+        </ButtonPrimary>
+        <ButtonPrimary onClick={() => filterOrigin("Boko Fertilizer")}>
+          From Boko
+        </ButtonPrimary>
+        <ButtonPrimary onClick={() => filterOrigin("Others")}>
+          From Others
+        </ButtonPrimary>
+      </nav>
+      <nav className='mb-5 grid grid-cols-3 md:grid-cols-6 gap-2'>
+        <ButtonPrimary onClick={() => filterItem("MOP")}>MOP</ButtonPrimary>
+        <ButtonPrimary onClick={() => filterItem("DAP")}>DAP</ButtonPrimary>
+        <ButtonPrimary onClick={() => filterItem("UREA")}>UREA</ButtonPrimary>
+        <ButtonPrimary onClick={() => filterItem("GAS")}>GAS</ButtonPrimary>
+        <ButtonPrimary onClick={() => filterItem("LSG")}>LSG</ButtonPrimary>
+      </nav>
+      <DefaultTable tableHeader={trucksHeader} tableData={filteredTrucks} />
+    </>
   );
 }
-
-const BokoDestination = ({ allTrucks }) => {
-  return "boko";
-};

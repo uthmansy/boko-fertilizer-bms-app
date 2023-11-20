@@ -6,6 +6,7 @@ import AdminTransit from "./AdminTransit";
 import InventoryTotalInventory from "./InventoryTotalInventory";
 import Items from "./Items";
 import AdminReceivedTrucks from "./AdminReceivedTrucks.jsx";
+import LogisticsTransit from "./LogisticsTransit.jsx";
 
 export default function AdminContent() {
   const { user } = useAuth();
@@ -17,7 +18,7 @@ export default function AdminContent() {
         <Route path='/sales/*' element={<AccountingSales />} />
         <Route path='/purchases/*' element={<AccountingPurchases />} />
         <Route path='/items/*' element={<Items />} />
-        <Route path='/transit/*' element={<AdminTransit />} />
+        <Route path='/transit/*' element={<LogisticsTransit />} />
         <Route path='/received-trucks' element={<AdminReceivedTrucks />} />
         <Route path='/contact' element={<div>Contact Page</div>} />
       </Routes>

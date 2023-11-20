@@ -4,68 +4,77 @@ import { fetchAllItems } from "../util/crud";
 const ItemsContext = createContext();
 
 export function useItems() {
-	return useContext(ItemsContext);
+  return useContext(ItemsContext);
 }
 
 export function ItemsProvider({ children }) {
-	const defaultItems = [
-		{
-			name: "MOP",
-			code: "01",
-		},
-		{
-			name: "DAP",
-			code: "02",
-		},
-		{
-			name: "GAS",
-			code: "03",
-		},
-		{
-			name: "UREA",
-			code: "04",
-		},
-		{
-			name: "LSG",
-			code: "05",
-		},
-		{
-			name: "NPK20:10:10",
-			code: "06",
-		},
-		{
-			name: "NPK20:10:10+s",
-			code: "07",
-		},
-		{
-			name: "NPK15:15:15",
-			code: "08",
-		},
-		{
-			name: "NPK27:13:13",
-			code: "09",
-		},
-	];
-	const [items, setItems] = useState(defaultItems);
+  const defaultItems = [
+    {
+      name: "MOP",
+      code: "01",
+      type: "raw",
+    },
+    {
+      name: "DAP",
+      code: "02",
+      type: "raw",
+    },
+    {
+      name: "GAS",
+      code: "03",
+      type: "raw",
+    },
+    {
+      name: "UREA",
+      code: "04",
+      type: "raw",
+    },
+    {
+      name: "LSG",
+      code: "05",
+      type: "raw",
+    },
+    {
+      name: "NPK20:10:10",
+      code: "AA",
+      type: "product",
+    },
+    {
+      name: "NPK20:10:10+s",
+      code: "BB",
+      type: "product",
+    },
+    {
+      name: "NPK15:15:15",
+      code: "CC",
+      type: "product",
+    },
+    {
+      name: "NPK27:13:13",
+      code: "DD",
+      type: "product",
+    },
+  ];
+  const [items, setItems] = useState(defaultItems);
 
-	useEffect(() => {
-		const fetchItems = async () => {
-			try {
-				const allItems = await fetchAllItems();
-				setItems(allItems);
-			} catch (error) {
-				setItems(defaultItems);
-			}
-		};
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const allItems = await fetchAllItems();
+        setItems(allItems);
+      } catch (error) {
+        setItems(defaultItems);
+      }
+    };
 
-		fetchItems();
-	}, []);
+    fetchItems();
+  }, []);
 
-	const value = {
-		items,
-	};
+  const value = {
+    items,
+  };
 
-	return (
-		<ItemsContext.Provider value={value}>{children}</ItemsContext.Provider>
-	);
+  return (
+    <ItemsContext.Provider value={value}>{children}</ItemsContext.Provider>
+  );
 }

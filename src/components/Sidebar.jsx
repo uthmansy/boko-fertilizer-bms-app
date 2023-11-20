@@ -6,7 +6,7 @@ export default function Sidebar({ menuItems }) {
   const { user } = useAuth();
 
   return (
-    <aside className='fixed z-20 flex flex-col w-64 h-screen px-4 py-8 overflow-y-auto bg-slate-800 border-r rtl:border-r-0 rtl:border-l '>
+    <aside className=' flex flex-col w-full h-screen px-4 py-8 overflow-y-auto bg-slate-800 '>
       <div className='flex items-center space-x-4 border-b pb-5 border-slate-500'>
         <img
           className='w-14 h-14 rounded-full object-cover'
