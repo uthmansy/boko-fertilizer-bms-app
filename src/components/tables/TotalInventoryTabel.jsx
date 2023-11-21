@@ -1,6 +1,6 @@
 export default function TotalInventoryTable({ item, tableHeader, tableData }) {
   return (
-    <div className='bg-white overflow-hidden shadow-lg'>
+    <div className='bg-white overflow-x-auto shadow-lg'>
       <table className='w-full text-sm text-left text-gray-500'>
         <thead className='text-xs text-white uppercase bg-teal-500 shadow-lg'>
           <tr className='border-b'>

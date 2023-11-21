@@ -38,25 +38,31 @@ export default function AdminReceivedTrucks() {
           const {
             truckNumber,
             origin,
-            destination,
-            otherDestination,
+            // destination,
+            // otherDestination,
+            otherOrigin,
             waybillNumber,
-            orderNumber,
+            // orderNumber,
             dateReceived,
             item,
+            qtyBagsDispatched,
+            qtyBagsReceived,
           } = truck;
           // Create a new object with the extracted key-value pairs
           const data = {
             truckNumber,
             origin,
-            destination,
+            // destination,
             item,
+            qtyBagsDispatched,
+            qtyBagsReceived,
             waybillNumber,
-            orderNumber: orderNumber || "NIL",
+            // orderNumber: orderNumber || "NIL",
             dateReceived: formatTimestamp(dateReceived),
           };
 
-          if (destination === "Others") data.destination = otherDestination;
+          // if (destination === "Others") data.destination = otherDestination;
+          if (origin === "Others") data.origin = otherOrigin;
 
           return data;
         });
@@ -76,10 +82,12 @@ export default function AdminReceivedTrucks() {
     "SN",
     "Truck Number",
     "Origin",
-    "Destination",
+    // "Destination",
     "Item",
+    "Qty Dispatched",
+    "Qty Received",
     "Waybill Number",
-    "Order Number",
+    // "Order Number",
     "Date Received",
   ];
 

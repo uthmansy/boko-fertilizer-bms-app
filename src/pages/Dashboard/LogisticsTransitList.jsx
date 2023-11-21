@@ -12,6 +12,8 @@ export default function LogisticsTransitList({ trucks }) {
       origin,
       destination,
       otherDestination,
+      otherOrigin,
+      qtyBagsDispatched,
       waybillNumber,
       dateLoaded,
       item,
@@ -23,11 +25,13 @@ export default function LogisticsTransitList({ trucks }) {
       origin,
       destination,
       item,
+      qtyBagsDispatched,
       waybillNumber,
       dateLoaded: formatTimestamp(dateLoaded),
     };
 
     if (destination === "Others") data.destination = otherDestination;
+    if (origin === "Others") data.origin = otherOrigin;
 
     return data;
   });
@@ -41,6 +45,7 @@ export default function LogisticsTransitList({ trucks }) {
     "Origin",
     "Destination",
     "Item",
+    "QTY Dispatched",
     "Waybill Number",
     "Date Loaded",
   ];

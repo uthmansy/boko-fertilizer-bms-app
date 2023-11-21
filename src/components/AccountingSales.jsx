@@ -365,7 +365,7 @@ const AllSales = () => {
         exact
         path='/*'
         element={
-          <div className='container mx-auto bg-white p-4 shadow-md rounded-md'>
+          <div className='container mx-auto bg-white p-4 shadow-md rounded-md overflow-x-auto'>
             <RefreshButton refresh={refresh} setRefresh={setRefresh} />
             <h1 className='text-2xl font-bold mb-3 mt-3'>
               Sales Transaction List
@@ -452,7 +452,7 @@ function TransactionSummary() {
       <Route
         path='/*'
         element={
-          <div className='overflow-hidden border border-gray-200 sm:rounded-lg container mx-auto p-4 bg-white rounded-md shadow-md'>
+          <div className='border border-gray-200 sm:rounded-lg container mx-auto p-4 bg-white rounded-md shadow-md overflow-x-auto'>
             <div className='mb-5 flex space-x-2'>
               <RefreshButton refresh={refresh} setRefresh={setRefresh} />
               <BackButton />

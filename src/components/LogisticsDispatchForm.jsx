@@ -200,7 +200,6 @@ export default function LogisticsDispatchForm({ setNewDispatch }) {
       status: "transit",
       transportFeePaidOnReceived: "₦0",
       sequenceNumber,
-      sWaybill,
       waybillNumber,
       shortage: 0,
       releaseOrder: null,
