@@ -47,7 +47,6 @@ export default function AdminReceivedTrucks() {
           } = truck;
           // Create a new object with the extracted key-value pairs
           const data = {
-            SN: index + 1,
             truckNumber,
             origin,
             destination,

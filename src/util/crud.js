@@ -123,6 +123,61 @@ export const createNewDispatch = async (payload) => {
   }
 };
 
+export const createNewSaleDispatch = async (payload) => {
+  const batchWrite = writeBatch(db);
+  const trucksCollection = collection(db, "trucks");
+  const transactionsCollection = collection(db, "transactions");
+
+  try {
+    // Create a new document reference with an auto-generated unique ID
+    const truckDocRef = doc(trucksCollection);
+
+    // Set the data for the truck document
+    batchWrite.set(truckDocRef, payload);
+
+    if (payload.origin === "Boko Fertilizer")
+      batchWrite.update(doc(db, "items", payload.item), {
+        dispatched: increment(payload.qtyBagsDispatched),
+        balance: increment(-payload.qtyBagsDispatched),
+      });
+
+    const { orderNumber, item, qtyBagsDispatched } = payload;
+    const q = query(
+      transactionsCollection,
+      where("orderNumber", "==", orderNumber),
+      limit(1)
+    );
+
+    const transactionQuerySnapshot = await getDocs(q);
+
+    if (!transactionQuerySnapshot.empty) {
+      const transactionDoc = transactionQuerySnapshot.docs[0];
+      const { itemsSold } = transactionDoc.data();
+
+      const itemIndex = itemsSold.findIndex(
+        (itemData) => itemData.itemId === item
+      );
+
+      if (itemIndex !== -1) {
+        itemsSold[itemIndex].taken += parseInt(qtyBagsDispatched);
+
+        const transactionRef = doc(db, "transactions", transactionDoc.id);
+        batchWrite.update(transactionRef, { itemsSold });
+      } else {
+        throw new Error(`Item with itemId ${item} not found in itemsSold.`);
+      }
+    } else {
+      throw new Error("Transaction document not found.");
+    }
+
+    // Commit batch write
+    await batchWrite.commit();
+  } catch (error) {
+    console.error("Error creating a new truck document:", error);
+    throw error;
+  }
+};
+
 export const getTrucksWithFilter = async (
   filterField,
   filterValue,
@@ -207,37 +262,16 @@ export const receiveTruck = async (truckId, payload) => {
 };
 
 export const updateInventoryRecord = async (item, action, quantity) => {
-  const collectionName = "items";
-  const documentId = item;
-  const quantityMts = (50 * parseInt(quantity)) / 1000;
-  console.log(quantityMts);
-
   try {
-    const itemRef = doc(db, collectionName, documentId);
-    const dbItem = await getDoc(itemRef);
-
-    if (dbItem.exists) {
-      const currentData = dbItem.data();
-
-      if (action === "received") {
-        currentData.balance += parseInt(quantity);
-        currentData.balanceMts += quantityMts;
-        currentData.received += parseInt(quantity);
-        currentData.receivedMts += quantityMts;
-      } else if (action === "dispatched") {
-        currentData.balance -= parseInt(quantity);
-        currentData.balanceMts -= quantityMts;
-        currentData.dispatched += parseInt(quantity);
-        currentData.dispatchedMts += quantityMts;
-      }
-
-      await updateDoc(itemRef, currentData);
-      console.log(`Successfully updated ${item} inventory.`);
-    } else {
-      console.error(`${item} document does not exist.`);
-    }
+    const itemRef = doc(db, "items", item);
+    await updateDoc(itemRef, {
+      balance: increment(action === "received" ? quantity : -quantity),
+      received: increment(action === "received" ? quantity : 0),
+      dispatched: increment(action === "dispatched" ? quantity : 0),
+    });
   } catch (error) {
     console.error(`Error updating ${item} inventory: ${error}`);
+    throw error;
   }
 };
 
@@ -249,11 +283,9 @@ export const getItemTotalInventory = async (item) => {
     if (itemSnap.exists()) {
       return itemSnap.data();
     } else {
-      // itemSnap.data() will be undefined in this case
-      console.log("No such document!");
+      throw new Error("Error getting item total inventory");
     }
   } catch (error) {
-    console.error("Error getting filtered trucks:", error);
     throw error;
   }
 };
@@ -791,6 +823,56 @@ export const getTransactions = async (type = null, status = null) => {
         transactionsCollection,
         where("status", "==", status),
         where("type", "==", type),
+        orderBy("createdAt", "desc")
+      );
+    }
+
+    // Fetch documents based on the query
+    const querySnapshot = await getDocs(transactionsQuery);
+
+    const transactions = [];
+    querySnapshot.forEach((doc) => {
+      transactions.push({ id: doc.id, ...doc.data() });
+    });
+
+    return transactions;
+  } catch (error) {
+    console.error("Error fetching transactions:", error);
+    throw error; // Re-throw the error for higher-level error handling, if needed.
+  }
+};
+export const getDispatchTransactions = async (
+  pickUpLocation = null,
+  status = null
+) => {
+  try {
+    // Create a reference to the "transactions" collection
+    const transactionsCollection = collection(db, "transactions");
+
+    // Create a query with optional filters for type and status
+    let transactionsQuery = query(transactionsCollection);
+
+    if (pickUpLocation && status === null) {
+      transactionsQuery = query(
+        transactionsCollection,
+        where("pickUpLocation", "==", pickUpLocation),
+        orderBy("createdAt", "desc")
+      );
+    }
+
+    if (status && pickUpLocation === null) {
+      transactionsQuery = query(
+        transactionsCollection,
+        where("status", "==", status),
+        orderBy("createdAt", "desc")
+      );
+    }
+
+    if (status && pickUpLocation) {
+      transactionsQuery = query(
+        transactionsCollection,
+        where("status", "==", status),
+        where("pickUpLocation", "==", pickUpLocation),
         orderBy("createdAt", "desc")
       );
     }

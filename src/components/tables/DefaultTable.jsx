@@ -21,6 +21,7 @@ export default function DefaultTable({ tableHeader, tableData }) {
                 className='bg-white border-b dark:bg-gray-800 dark:border-gray-700'
                 key={index}
               >
+                <td className='px-6 py-4'>{index + 1}</td>
                 {dataEntries.map(([key, value]) => (
                   <td className='px-6 py-4' key={key}>
                     {value}

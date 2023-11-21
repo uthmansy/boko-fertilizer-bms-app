@@ -652,9 +652,14 @@ const PrintPage = ({ transaction }) => {
       <div className='max-w-full'>
         {/* A4 Paper Size */}
         <div
-          className='bg-white p-8'
+          className='bg-white p-8 relative'
           style={{ width: "8.3in", height: "11.7in" }}
         >
+          <div className='absolute flex items-center justify-center top-0 left-0 right-0 bottom-0'>
+            <div className='p-5 text-8xl font-bold  border-8 border-red-500 text-red-500 rotate-45 opacity-50 rounded-3xl'>
+              CONFIDENTIAL
+            </div>
+          </div>
           <div className='mb-10 flex items-center flex-col'>
             <img className='w-24' src={IMAGES.logo} alt='logo' />
 

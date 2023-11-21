@@ -36,6 +36,7 @@ export default function LogisticsTransitList({ trucks }) {
 
   //render a table of trucks or an info saying no trucks based on trucks prop
   const trucksHeader = [
+    "SN",
     "Truck Number",
     "Origin",
     "Destination",
