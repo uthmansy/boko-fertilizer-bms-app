@@ -62,7 +62,7 @@ const CreateNew = () => {
     beneficiaryName: "",
     beneficiaryPhone: "",
     pickUpLocation: "others",
-    itemsPurchased: [{ itemId: "", quantity: 0, taken: 0 }],
+    itemsPurchased: [{ itemId: "", quantity: 0 }],
     totalCost: "",
     date: "",
   });
@@ -142,10 +142,7 @@ const CreateNew = () => {
   const addItem = () => {
     setFormData({
       ...formData,
-      itemsPurchased: [
-        ...formData.itemsPurchased,
-        { itemId: "", quantity: 0, taken: 0 },
-      ],
+      itemsPurchased: [...formData.itemsPurchased, { itemId: "", quantity: 0 }],
     });
     checkFormValidity(); // Trigger form validation check
   };
@@ -163,16 +160,23 @@ const CreateNew = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+
+    const {
+      beneficiaryName,
+      beneficiaryPhone,
+      itemsPurchased: rawItemsPurchased,
+      pickUpLocation,
+      totalCost,
+      date,
+    } = formData;
+
+    const itemsPurchased = rawItemsPurchased.map((item) => {
+      return { itemId: item.itemId, quantity: item.quantity, taken: 0 };
+    });
+
     try {
       const lastSequenceNumber = await getLastTransactionSequence("purchase");
-      const {
-        beneficiaryName,
-        beneficiaryPhone,
-        itemsPurchased,
-        pickUpLocation,
-        totalCost,
-        date,
-      } = formData;
+
       const payload = {
         beneficiaryName,
         beneficiaryPhone,
@@ -328,6 +332,9 @@ const CreateNew = () => {
 };
 
 const AllPurchases = () => {
+  const { items } = useItems();
+
+  const [allPurchases, setAllPurchases] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -338,6 +345,7 @@ const AllPurchases = () => {
         setIsLoading(true);
         const result = await getTransactions("purchase");
         setPurchases(result);
+        setAllPurchases(result);
         setIsLoading(false);
       };
       fetAllPurchases();
@@ -348,64 +356,100 @@ const AllPurchases = () => {
     <div className='h-20 w-full flex items-center justify-center'>
       <Spinner />
     </div>
-  ) : purchases.length === 0 ? (
-    <InfoAlert>There are Currently no Purchases</InfoAlert>
   ) : (
-    <Routes>
-      <Route
-        exact
-        path='/'
-        element={
-          <div className='container mx-auto bg-white p-4 shadow-md rounded-md overflow-x-auto'>
-            <RefreshButton refresh={refresh} setRefresh={setRefresh} />
-            <h1 className='text-2xl font-bold mb-3 mt-3'>Transaction List</h1>
-            <table className='w-full border-collapse border rounded-lg text-sm'>
-              <thead>
-                <tr>
-                  <th className='p-3 bg-gray-100 text-center'>SN</th>
-                  <th className='p-3 text-left bg-gray-100'>Beneficiary</th>
-                  <th className='p-3 text-left bg-gray-100'>Amount</th>
-                  <th className='p-3 text-left bg-gray-100'>Status</th>
-                  <th className='p-3 text-left bg-gray-100'>Items Purchased</th>
-                  <th className='p-3 text-left bg-gray-100'>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchases.map((purchase, index) => (
-                  <tr key={purchase.id} className='hover:bg-gray-100 border-b'>
-                    <td className='p-3 border-r text-center'>{index + 1}</td>
-                    <td className='p-3'>{purchase.beneficiaryName}</td>
-                    <td className='p-3'>{formatMoney(purchase.totalCost)}</td>
-                    <td className='p-3'>{purchase.status}</td>
-                    <td className='p-3 border-r border-l'>
-                      <ul className='list-style-none'>
-                        {purchase.itemsPurchased.map((item, index) => (
-                          <li className='flex' key={index}>
-                            <span className='font-bold'>{item.itemId}:</span>{" "}
-                            <span className='text-green-500 flex-grow text-right mr-5'>
-                              {item.quantity} Bags
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </td>
-                    <td className='p-3'>
-                      <Link
-                        to={`/purchases/all/${purchase.id}`}
-                        className='hover:underline bg-blue-500 p-2 px-3 text-white w-full inline-block text-center'
-                      >
-                        View Details
-                      </Link>
-                    </td>
-                  </tr>
+    <div>
+      <Routes>
+        <Route
+          exact
+          path='/'
+          element={
+            <div className='container mx-auto bg-white p-4 shadow-md rounded-md overflow-x-auto'>
+              <RefreshButton refresh={refresh} setRefresh={setRefresh} />
+              <h1 className='text-2xl font-bold mb-3 mt-3'>Transaction List</h1>
+              <div className='grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2 mb-5'>
+                <ButtonPrimary
+                  classes='bg-red-500'
+                  onClick={() => setPurchases(allPurchases)}
+                >
+                  ALL
+                </ButtonPrimary>
+                {items.map((item, index) => (
+                  <ButtonPrimary
+                    classes='bg-red-500'
+                    key={index}
+                    onClick={() =>
+                      setPurchases(
+                        allPurchases.filter(
+                          (purchase) =>
+                            purchase.itemsPurchased[0].itemId === item.name
+                        )
+                      )
+                    }
+                  >
+                    {item.name}
+                  </ButtonPrimary>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        }
-      />
-      <Route exact path='/:transactionId/*' element={<TransactionSummary />} />
-    </Routes>
+              </div>
+              <table className='w-full border-collapse border rounded-lg text-sm'>
+                <thead>
+                  <tr>
+                    <th className='p-3 bg-gray-100 text-center'>SN</th>
+                    <th className='p-3 text-left bg-gray-100'>Beneficiary</th>
+                    <th className='p-3 text-left bg-gray-100'>Amount</th>
+                    <th className='p-3 text-left bg-gray-100'>Status</th>
+                    <th className='p-3 text-left bg-gray-100'>
+                      Items Purchased
+                    </th>
+                    <th className='p-3 text-left bg-gray-100'>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {purchases.map((purchase, index) => (
+                    <tr
+                      key={purchase.id}
+                      className='hover:bg-gray-100 border-b'
+                    >
+                      <td className='p-3 border-r text-center'>{index + 1}</td>
+                      <td className='p-3'>{purchase.beneficiaryName}</td>
+                      <td className='p-3'>{formatMoney(purchase.totalCost)}</td>
+                      <td className='p-3'>{purchase.status}</td>
+                      <td className='p-3 border-r border-l'>
+                        <ul className='list-style-none'>
+                          {purchase.itemsPurchased.map((item, index) => (
+                            <li className='flex' key={index}>
+                              <span className='font-bold'>{item.itemId}:</span>{" "}
+                              <span className='text-green-500 flex-grow text-right mr-5'>
+                                {item.quantity} Bags
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td className='p-3'>
+                        <Link
+                          to={`/purchases/all/${purchase.id}`}
+                          className='hover:underline bg-blue-500 p-2 px-3 text-white w-full inline-block text-center'
+                        >
+                          View Details
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          }
+        />
+        <Route
+          exact
+          path='/:transactionId/*'
+          element={<TransactionSummary />}
+        />
+      </Routes>
+      {purchases.length === 0 && (
+        <InfoAlert>There are Currently no Purchases</InfoAlert>
+      )}
+    </div>
   );
 };
 

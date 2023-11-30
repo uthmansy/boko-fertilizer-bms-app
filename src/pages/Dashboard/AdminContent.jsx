@@ -1,28 +1,31 @@
 import { Route, Routes } from "react-router-dom";
-import { useAuth } from "../../contexts/authContext";
 import AccountingSales from "../../components/AccountingSales";
 import AccountingPurchases from "../../components/AccountingPurchases";
-import AdminTransit from "./AdminTransit";
 import InventoryTotalInventory from "./InventoryTotalInventory";
 import Items from "./Items";
-import AdminReceivedTrucks from "./AdminReceivedTrucks.jsx";
-import LogisticsTransit from "./LogisticsTransit.jsx";
-import LogisticsCreateDispatch from "./LogisticsCreateDispatch.jsx";
+import CreateDispatch from "./CreateDispatch.jsx";
+import DeliveredTrucks from "./DeliveredTrucks.jsx";
+import Transit from "./Transit.jsx";
+import ReceivedTrucks from "./ReceivedTrucks.jsx";
+import ViewProductionRuns from "../../components/ViewProductionRuns.jsx";
+import Salaries from "./Salaries.jsx";
+import Staffs from "./Staffs.jsx";
 
 export default function AdminContent() {
-  const { user } = useAuth();
-
   return (
     <div>
       <Routes>
         <Route exact path='/*' element={<InventoryTotalInventory />} />
         <Route path='/sales/*' element={<AccountingSales />} />
         <Route path='/purchases/*' element={<AccountingPurchases />} />
-        <Route path='/dispatch/*' element={<LogisticsCreateDispatch />} />
+        <Route path='/dispatch/*' element={<CreateDispatch />} />
         <Route path='/items/*' element={<Items />} />
-        <Route path='/transit/*' element={<LogisticsTransit />} />
-        <Route path='/received-trucks' element={<AdminReceivedTrucks />} />
-        <Route path='/contact' element={<div>Contact Page</div>} />
+        <Route path='/transit/*' element={<Transit />} />
+        <Route path='/delivered-trucks/*' element={<DeliveredTrucks />} />
+        <Route path='/received-trucks/*' element={<ReceivedTrucks />} />
+        <Route path='/production/*' element={<ViewProductionRuns />} />
+        <Route path='/salaries/*' element={<Salaries />} />
+        <Route path='/staffs/*' element={<Staffs />} />
       </Routes>
     </div>
   );

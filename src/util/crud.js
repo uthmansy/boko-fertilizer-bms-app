@@ -2,6 +2,7 @@ import {
   addDoc,
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -184,11 +185,14 @@ export const getTrucksWithFilter = async (
   order = "dateLoaded"
 ) => {
   try {
+    console.log("start...");
+
     const trucksRef = collection(db, "trucks");
     const q = query(
       trucksRef,
       where(filterField, "==", filterValue),
-      orderBy(order, "desc")
+      orderBy(order, "desc"),
+      limit(100)
     );
     const querySnapshot = await getDocs(q);
 
@@ -197,12 +201,16 @@ export const getTrucksWithFilter = async (
       return [];
     }
     const trucks = [];
+    console.log("middle...");
+
     querySnapshot.forEach((doc) => {
       trucks.push({
         id: doc.id,
         ...doc.data(),
       });
     });
+    console.log("done...");
+
     return trucks;
   } catch (error) {
     console.error("Error getting filtered trucks:", error);
@@ -212,9 +220,10 @@ export const getTrucksWithFilter = async (
 
 export const getTruckById = async (truckId) => {
   const truckRef = doc(db, "trucks", truckId);
-  const truck = await getDoc(truckRef);
 
   try {
+    const truck = await getDoc(truckRef);
+
     if (truck.exists()) {
       return truck.data();
     } else {
@@ -226,9 +235,7 @@ export const getTruckById = async (truckId) => {
   }
 };
 
-export const receiveTruck = async (truckId, payload) => {
-  const truckRef = doc(db, "trucks", truckId);
-
+export const receiveTruck = async (truckId, payload, destination) => {
   const {
     qtyBagsReceived,
     qtyMtsReceived,
@@ -239,11 +246,15 @@ export const receiveTruck = async (truckId, payload) => {
     transportFeeFinalBalance,
     transportFeePaidOnReceived,
     transportFeePaidStatus,
+    item: itemId,
   } = payload;
-  // const dateReceived = await Timestamp.now();
+
+  const truckRef = doc(db, "trucks", truckId);
+  const itemRef = doc(db, "items", itemId);
+  const batchWrite = writeBatch(db);
 
   try {
-    await updateDoc(truckRef, {
+    batchWrite.update(truckRef, {
       status: "received",
       qtyBagsReceived,
       qtyMtsReceived,
@@ -255,7 +266,14 @@ export const receiveTruck = async (truckId, payload) => {
       transportFeePaidOnReceived,
       transportFeePaidStatus,
     });
-    return getDoc(truckRef);
+    if (destination === "Boko Fertilizer") {
+      batchWrite.update(itemRef, {
+        balance: increment(qtyBagsReceived),
+        received: increment(qtyBagsReceived),
+      });
+    }
+
+    await batchWrite.commit();
   } catch (error) {
     throw error;
   }
@@ -497,18 +515,11 @@ export const createProductionRun = async (data) => {
         transaction
       );
 
-      // Calculate the new quantityProduced and balance values.
       const quantityProduced = Number(data.quantityProduced);
-      const currentQuantityProduced =
-        finishedProductDoc.data().quantityProduced || 0;
-      const currentBalance = finishedProductDoc.data().balance || 0;
-      const newQuantityProduced = currentQuantityProduced + quantityProduced;
-      const newBalance = currentBalance + quantityProduced;
 
       // Update the finished product document within the transaction.
       transaction.update(finishedProductRef, {
-        quantityProduced: newQuantityProduced,
-        balance: newBalance,
+        quantityProduced: increment(quantityProduced),
         availableInProduction: increment(quantityProduced),
       });
 
@@ -719,8 +730,9 @@ export const fetchAllItems = async () => {
 
     querySnapshot.forEach((doc) => {
       const { name, code, type } = doc.data();
+      const id = doc.id;
       if (name && code && type) {
-        items.push({ name, code, type });
+        items.push({ name: id, code, type });
       }
     });
 
@@ -1033,5 +1045,200 @@ export const createNewItem = async (name, type) => {
     await setDoc(doc(db, "items", name), newItem);
   } catch (error) {
     throw new Error(`Error creating new item: ${error.message}`);
+  }
+};
+
+export const getItemById = async (docId) => {
+  try {
+    if (!docId) {
+      throw new Error("Document ID is required.");
+    }
+
+    // Reference to the document in the "items" collection
+    const itemRef = doc(db, "items", docId);
+
+    // Fetch the document snapshot using getDoc
+    const docSnap = await getDoc(itemRef);
+
+    // Check if the document exists
+    if (docSnap.exists()) {
+      // Extract data from the document
+      const itemData = docSnap.data();
+      return itemData;
+    } else {
+      throw new Error("Document does not exist.");
+    }
+  } catch (error) {
+    console.error("Error getting document:", error.message);
+    throw error; // Re-throw the error to be caught by the calling code if needed
+  }
+};
+
+export const updateTruckData = async (docId, payload) => {
+  try {
+    const truckRef = doc(db, "trucks", docId);
+    await updateDoc(truckRef, { ...payload, upadatedAt: serverTimestamp() });
+  } catch (error) {
+    console.error("Error updating truck data:", error);
+    throw error;
+  }
+};
+
+export const deleteTruckData = async (
+  docId,
+  qtyBagsDispatched,
+  item,
+  orderNumber
+) => {
+  try {
+    if (!docId || !qtyBagsDispatched || !item || !orderNumber) {
+      throw new Error("All parameters are required for the operation.");
+    }
+
+    const batch = writeBatch(db);
+
+    const truckRef = doc(db, "trucks", docId);
+    batch.delete(truckRef);
+
+    const transactionsRef = collection(db, "transactions");
+    const transactionQuery = query(
+      transactionsRef,
+      where("orderNumber", "==", orderNumber),
+      limit(1)
+    );
+    const transactionSnapshot = await getDocs(transactionQuery);
+
+    if (transactionSnapshot.size > 0) {
+      const transactionDoc = transactionSnapshot.docs[0];
+      const transactionData = transactionDoc.data();
+      console.log(transactionData);
+
+      const isPurchase = orderNumber.startsWith("P");
+      const itemsField = isPurchase ? "itemsPurchased" : "itemsSold";
+
+      const updatedItems = transactionData[itemsField].map(
+        (transactionItem) => {
+          if (transactionItem.itemId === item) {
+            const updatedTaken = transactionItem.taken - qtyBagsDispatched;
+            return { ...transactionItem, taken: updatedTaken };
+          }
+          return transactionItem;
+        }
+      );
+
+      const updatedTransactionRef = doc(transactionsRef, transactionDoc.id);
+      batch.update(updatedTransactionRef, {
+        [itemsField]: updatedItems,
+      });
+    } else {
+      console.error(
+        `Transaction data with order number ${orderNumber} not found.`
+      );
+    }
+
+    await batch.commit();
+  } catch (error) {
+    console.error("Error deleting truck data:", error.message);
+    throw error;
+  }
+};
+
+export const addSalary = async (salaryData) => {
+  try {
+    const salariesCollection = collection(db, "salaries");
+    const docRef = await addDoc(salariesCollection, salaryData);
+    return docRef.id; // Returning the document ID if needed
+  } catch (error) {
+    console.error("Error adding salary to Firestore: ", error.message);
+    throw error; // Re-throwing the error for further handling
+  }
+};
+
+export const getAllSalaries = async () => {
+  try {
+    const salariesCollection = collection(db, "salaries");
+    const querySnapshot = await getDocs(salariesCollection);
+    const salaries = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    return salaries;
+  } catch (error) {
+    console.error("Error fetching salaries from Firestore: ", error.message);
+    throw error;
+  }
+};
+
+export const getSalaryById = async (salaryId) => {
+  try {
+    const salaryDocRef = doc(db, "salaries", salaryId);
+    const docSnapshot = await getDoc(salaryDocRef);
+    if (docSnapshot.exists()) {
+      const salaryData = {
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
+      };
+      return salaryData;
+    } else {
+      console.error("Salary document not found.");
+      throw new Error("Salary not found");
+    }
+  } catch (error) {
+    console.error(
+      "Error fetching salary by ID from Firestore: ",
+      error.message
+    );
+    throw error;
+  }
+};
+
+export const addStaff = async (payload) => {
+  try {
+    const staffsCollection = collection(db, "staffs");
+    const docRef = await addDoc(staffsCollection, payload);
+    return docRef.id; // Returning the document ID if needed
+  } catch (error) {
+    console.error("Error adding staff: ", error.message);
+    throw error; // Re-throwing the error for further handling
+  }
+};
+
+export const getAllStaffs = async () => {
+  try {
+    const staffsCollection = collection(db, "staffs");
+    const querySnapshot = await getDocs(staffsCollection);
+    const staffs = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    return staffs;
+  } catch (error) {
+    console.error("Error fetching staffs: ", error.message);
+    throw error;
+  }
+};
+
+export const getSalaryPaymentsByYearAndMonth = async (year, month) => {
+  try {
+    const salaryPaymentsCollection = collection(db, "salaryPayments");
+    const q = query(
+      salaryPaymentsCollection,
+      where("year", "==", year),
+      where("month", "==", month)
+    );
+
+    const querySnapshot = await getDocs(q);
+    const salaryPayments = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return salaryPayments;
+  } catch (error) {
+    console.error(
+      "Error fetching salary payments from Firestore: ",
+      error.message
+    );
+    throw error;
   }
 };

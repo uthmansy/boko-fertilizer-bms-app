@@ -62,7 +62,7 @@ const CreateNew = () => {
     buyerName: "",
     buyerPhone: "",
     pickUpLocation: "",
-    itemsSold: [{ itemId: "", quantity: 0, taken: 0 }],
+    itemsSold: [{ itemId: "", quantity: 0 }],
     totalCost: "",
     date: "",
   });
@@ -120,6 +120,7 @@ const CreateNew = () => {
   const handleItemChange = (index, field, value) => {
     const itemsSold = [...formData.itemsSold];
     itemsSold[index][field] = value;
+    // itemsSold[index][taken] = 0;
     setFormData({
       ...formData,
       itemsSold,
@@ -141,7 +142,7 @@ const CreateNew = () => {
   const addItem = () => {
     setFormData({
       ...formData,
-      itemsSold: [...formData.itemsSold, { itemId: "", quantity: 0, taken: 0 }],
+      itemsSold: [...formData.itemsSold, { itemId: "", quantity: 0 }],
     });
     checkFormValidity(); // Trigger form validation check
   };
@@ -161,16 +162,23 @@ const CreateNew = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+
+    const {
+      buyerName,
+      buyerPhone,
+      itemsSold: rawItemsSold,
+      pickUpLocation,
+      totalCost,
+      date,
+    } = formData;
+
+    const itemsSold = rawItemsSold.map((item) => {
+      return { itemId: item.itemId, quantity: item.quantity, taken: 0 };
+    });
+
     try {
       const lastSequenceNumber = await getLastTransactionSequence("sale");
-      const {
-        buyerName,
-        buyerPhone,
-        itemsSold,
-        pickUpLocation,
-        totalCost,
-        date,
-      } = formData;
+
       const payload = {
         beneficiaryName: "Boko Fertilizer",
         beneficiaryPhone: "08169669906",
@@ -337,6 +345,9 @@ const CreateNew = () => {
 };
 
 const AllSales = () => {
+  const { items } = useItems();
+
+  const [allSales, setAllSales] = useState([]);
   const [sales, setSales] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -347,6 +358,7 @@ const AllSales = () => {
         setIsLoading(true);
         const result = await getTransactions("sale");
         setSales(result);
+        setAllSales(result);
         setIsLoading(false);
       };
       fetchAllSales();
@@ -357,66 +369,96 @@ const AllSales = () => {
     <div className='h-20 w-full flex items-center justify-center'>
       <Spinner />
     </div>
-  ) : sales.length === 0 ? (
-    <InfoAlert>There are Currently no Sales</InfoAlert>
   ) : (
-    <Routes>
-      <Route
-        exact
-        path='/*'
-        element={
-          <div className='container mx-auto bg-white p-4 shadow-md rounded-md overflow-x-auto'>
-            <RefreshButton refresh={refresh} setRefresh={setRefresh} />
-            <h1 className='text-2xl font-bold mb-3 mt-3'>
-              Sales Transaction List
-            </h1>
-            <table className='w-full border-collapse border rounded-lg text-sm'>
-              <thead>
-                <tr>
-                  <th className='p-3 bg-gray-100 text-center'>SN</th>
-                  <th className='p-3 text-left bg-gray-100'>Buyer</th>
-                  <th className='p-3 text-left bg-gray-100'>Amount</th>
-                  <th className='p-3 text-left bg-gray-100'>Status</th>
-                  <th className='p-3 text-left bg-gray-100'>Items Sold</th>
-                  <th className='p-3 text-left bg-gray-100'>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sales.map((sale, index) => (
-                  <tr key={sale.id} className='hover:bg-gray-100 border-b'>
-                    <td className='p-3 border-r text-center'>{index + 1}</td>
-                    <td className='p-3'>{sale.buyerName}</td>
-                    <td className='p-3'>{formatMoney(sale.totalCost)}</td>
-                    <td className='p-3'>{sale.status}</td>
-                    <td className='p-3 border-r border-l'>
-                      <ul className='list-style-none'>
-                        {sale.itemsSold.map((item, index) => (
-                          <li className='flex' key={index}>
-                            <span className='font-bold'>{item.itemId}:</span>{" "}
-                            <span className='text-green-500 flex-grow text-right mr-5'>
-                              {item.quantity} Bags
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </td>
-                    <td className='p-3'>
-                      <Link
-                        to={`/sales/all/${sale.id}`}
-                        className='hover:underline bg-blue-500 p-2 px-3 text-white w-full inline-block text-center'
-                      >
-                        View Details
-                      </Link>
-                    </td>
-                  </tr>
+    <>
+      <Routes>
+        <Route
+          exact
+          path='/*'
+          element={
+            <div className='container mx-auto bg-white p-4 shadow-md rounded-md overflow-x-auto'>
+              <RefreshButton refresh={refresh} setRefresh={setRefresh} />
+              <h1 className='text-2xl font-bold mb-3 mt-3'>
+                Sales Transaction List
+              </h1>
+              <div className='grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2 mb-5'>
+                <ButtonPrimary
+                  classes='bg-red-500'
+                  onClick={() => setSales(allSales)}
+                >
+                  ALL
+                </ButtonPrimary>
+                {items.map((item, index) => (
+                  <ButtonPrimary
+                    classes='bg-red-500'
+                    key={index}
+                    onClick={() =>
+                      setSales(
+                        allSales.filter(
+                          (sale) => sale.itemsSold[0].itemId === item.name
+                        )
+                      )
+                    }
+                  >
+                    {item.name}
+                  </ButtonPrimary>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        }
-      />
-      <Route exact path='/:transactionId/*' element={<TransactionSummary />} />
-    </Routes>
+              </div>
+              <table className='w-full border-collapse border rounded-lg text-sm'>
+                <thead>
+                  <tr>
+                    <th className='p-3 bg-gray-100 text-center'>SN</th>
+                    <th className='p-3 text-left bg-gray-100'>Buyer</th>
+                    <th className='p-3 text-left bg-gray-100'>Amount</th>
+                    <th className='p-3 text-left bg-gray-100'>Status</th>
+                    <th className='p-3 text-left bg-gray-100'>Items Sold</th>
+                    <th className='p-3 text-left bg-gray-100'>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sales.map((sale, index) => (
+                    <tr key={sale.id} className='hover:bg-gray-100 border-b'>
+                      <td className='p-3 border-r text-center'>{index + 1}</td>
+                      <td className='p-3'>{sale.buyerName}</td>
+                      <td className='p-3'>{formatMoney(sale.totalCost)}</td>
+                      <td className='p-3'>{sale.status}</td>
+                      <td className='p-3 border-r border-l'>
+                        <ul className='list-style-none'>
+                          {sale.itemsSold.map((item, index) => (
+                            <li className='flex' key={index}>
+                              <span className='font-bold'>{item.itemId}:</span>{" "}
+                              <span className='text-green-500 flex-grow text-right mr-5'>
+                                {item.quantity} Bags
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td className='p-3'>
+                        <Link
+                          to={`/sales/all/${sale.id}`}
+                          className='hover:underline bg-blue-500 p-2 px-3 text-white w-full inline-block text-center'
+                        >
+                          View Details
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          }
+        />
+        <Route
+          exact
+          path='/:transactionId/*'
+          element={<TransactionSummary />}
+        />
+      </Routes>
+      {sales.length === 0 && (
+        <InfoAlert>There are Currently no Sales</InfoAlert>
+      )}
+    </>
   );
 };
 

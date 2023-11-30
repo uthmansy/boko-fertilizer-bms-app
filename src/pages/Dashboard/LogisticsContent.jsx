@@ -1,18 +1,18 @@
 import { Route, Routes } from "react-router-dom";
 import { useAuth } from "../../contexts/authContext";
-import LogisticsCreateDispatch from "./LogisticsCreateDispatch";
-import LogisticsTransit from "./LogisticsTransit";
 import LogisticsReceived from "./LogisticsReceived";
+import CreateDispatch from "./CreateDispatch";
+import Transit from "./Transit";
 
 export default function LogisticsContent() {
-	const { user } = useAuth();
-	return (
-		<div>
-			<Routes>
-				<Route exact path="/" element={<LogisticsCreateDispatch />} />
-				<Route path="/transit/*" element={<LogisticsTransit />} />
-				<Route path="/received" element={<LogisticsReceived />} />
-			</Routes>
-		</div>
-	);
+  const { user } = useAuth();
+  return (
+    <div>
+      <Routes>
+        <Route exact path='/*' element={<CreateDispatch />} />
+        <Route path='/transit/*' element={<Transit />} />
+        <Route path='/received/*' element={<LogisticsReceived />} />
+      </Routes>
+    </div>
+  );
 }

@@ -1,18 +1,23 @@
 import { format } from "date-fns-tz";
 import { Timestamp } from "firebase/firestore";
 import { DateTime } from "luxon";
-import { getLastTransactionSequence } from "./crud";
 
 export const generateWaybillNumber = ({
   origin,
   destination,
   item,
   sequenceNumber,
+  allItems,
 }) => {
+  const itemsMap = {};
+  for (const item of allItems) {
+    itemsMap[item.name] = item.code;
+  }
   // Define code mappings for origin, destination, and items
   const codeMappings = {
     origin: {
       "Port Harcourt": "PH",
+      "Boko Fertilizer": "BKF",
       Lagos: "LG",
       Abuja: "AB",
       Others: "OTH",
@@ -24,12 +29,7 @@ export const generateWaybillNumber = ({
       // Add more mappings as needed
     },
     items: {
-      MOP: "01",
-      DAP: "02",
-      GAS: "03",
-      UREA: "04",
-      LSG: "05",
-      // Add more mappings as needed
+      ...itemsMap,
     },
   };
 
@@ -75,11 +75,9 @@ export const formatTimestamp = (timestamp) => {
     convertedTimestamp.getTime() + 12 * 60 * 60 * 1000
   ); // Adding 12 hours for the time difference
 
-  console.log(nigeriaTime);
   const stringDate = format(nigeriaTime, "dd/MM/yyyy", {
     timeZone: "Africa/Lagos",
   });
-  console.log(stringDate);
   return stringDate;
 };
 
