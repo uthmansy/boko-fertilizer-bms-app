@@ -40,11 +40,11 @@ const AccountingSales = () => {
       <TopNavBar
         links={[
           {
-            path: "/sales",
+            path: "",
             title: "Create New",
           },
           {
-            path: "/sales/all",
+            path: "all",
             title: "All Sales",
           },
         ]}

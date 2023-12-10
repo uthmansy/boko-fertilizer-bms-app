@@ -2,12 +2,18 @@ import { useState } from "react";
 import { formatMoney, moneyStringToNumber } from "../util/functions";
 import Modal from "./Modal";
 import { addStaff } from "../util/crud";
+import { useQueryClient } from "react-query";
 
 const StaffForm = () => {
+  const queryClient = useQueryClient();
+
   const [formData, setFormData] = useState({
     name: "",
     jobDescription: "",
+    category: "salary",
     salaryAmount: "",
+    phoneNumber: "",
+    accountNumber: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalData, setModalData] = useState({
@@ -35,10 +41,20 @@ const StaffForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { name, jobDescription, salaryAmount } = formData;
+    const {
+      name,
+      jobDescription,
+      category,
+      salaryAmount,
+      phoneNumber,
+      accountNumber,
+    } = formData;
     const payload = {
       name,
       jobDescription,
+      category,
+      phoneNumber,
+      accountNumber,
       salaryAmount: moneyStringToNumber(salaryAmount),
     };
     console.log(payload);
@@ -50,6 +66,8 @@ const StaffForm = () => {
         message: `Staff Created Successfully`,
         isError: false,
       });
+      queryClient.invalidateQueries("getStaffs");
+
       setIsSubmitting(false);
     } catch (error) {
       console.error(error);
@@ -63,7 +81,10 @@ const StaffForm = () => {
     setFormData({
       name: "",
       jobDescription: "",
+      category: "salary",
       salaryAmount: "",
+      phoneNumber: "",
+      accountNumber: "",
     });
   };
 
@@ -102,6 +123,56 @@ const StaffForm = () => {
             type='text'
             value={formData.jobDescription}
             name='jobDescription'
+            onChange={handleChange}
+            className='w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300'
+            required
+          />
+        </div>
+        <div className='mb-4'>
+          <label
+            className='block text-gray-700 text-sm font-bold mb-2'
+            htmlFor='category'
+          >
+            Category
+          </label>
+          <select
+            value={formData.category}
+            onChange={handleChange}
+            name='category'
+            required
+            className='w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300'
+          >
+            <option value='salary'>Salary</option>
+            <option value='allowance'>Allowance</option>
+          </select>
+        </div>
+        <div className='mb-4'>
+          <label
+            className='block text-gray-700 text-sm font-bold mb-2'
+            htmlFor='phoneNumber'
+          >
+            Phone Number
+          </label>
+          <input
+            type='text'
+            value={formData.phoneNumber}
+            name='phoneNumber'
+            onChange={handleChange}
+            className='w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300'
+            required
+          />
+        </div>
+        <div className='mb-4'>
+          <label
+            className='block text-gray-700 text-sm font-bold mb-2'
+            htmlFor='phoneNumber'
+          >
+            Account Number
+          </label>
+          <input
+            type='text'
+            value={formData.accountNumber}
+            name='accountNumber'
             onChange={handleChange}
             className='w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300'
             required

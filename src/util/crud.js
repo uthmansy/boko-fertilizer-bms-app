@@ -13,11 +13,13 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  startAfter,
   updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { moneyStringToNumber } from "./functions";
 
 export const getUserByUID = async (uid) => {
   try {
@@ -76,9 +78,33 @@ export const getLastWaybillSequence = async (itemName) => {
 export const createNewDispatch = async (payload) => {
   const batchWrite = writeBatch(db);
   const trucksCollection = collection(db, "trucks");
+  const transportFeeUsageCollection = collection(db, "transport_fee_usage");
+  const accountsCollection = collection(db, "accounts");
   const transactionsCollection = collection(db, "transactions");
 
   try {
+    const numericPaidTransport = moneyStringToNumber(payload.transportFeePaid);
+    if (numericPaidTransport) {
+      const q1 = query(accountsCollection, where("name", "==", "transportFee"));
+      const querySnapshot = await getDocs(q1);
+      const accountDoc = querySnapshot.docs[0];
+      const accountDocRef = doc(db, "accounts", accountDoc.id);
+      batchWrite.update(accountDocRef, {
+        totalUsed: increment(numericPaidTransport),
+      });
+      const transportFeeUsageRef = doc(transportFeeUsageCollection);
+      const { truckNumber, waybillNumber, dateLoaded, dispatchOfficer } =
+        payload;
+      batchWrite.set(transportFeeUsageRef, {
+        truckNumber,
+        waybillNumber,
+        dateLoaded,
+        dispatchOfficer,
+        transportFeePaid: numericPaidTransport,
+        createdAt: serverTimestamp(),
+      });
+    }
+
     // Create a new document reference with an auto-generated unique ID
     const truckDocRef = doc(trucksCollection);
 
@@ -118,6 +144,7 @@ export const createNewDispatch = async (payload) => {
 
     // Commit batch write
     await batchWrite.commit();
+    return truckDocRef.id;
   } catch (error) {
     console.error("Error creating a new truck document:", error);
     throw error;
@@ -127,9 +154,33 @@ export const createNewDispatch = async (payload) => {
 export const createNewSaleDispatch = async (payload) => {
   const batchWrite = writeBatch(db);
   const trucksCollection = collection(db, "trucks");
+  const transportFeeUsageCollection = collection(db, "transport_fee_usage");
+  const accountsCollection = collection(db, "accounts");
   const transactionsCollection = collection(db, "transactions");
 
   try {
+    const numericPaidTransport = moneyStringToNumber(payload.transportFeePaid);
+    if (numericPaidTransport) {
+      const q = query(accountsCollection, where("name", "==", "transportFee"));
+      const querySnapshot = await getDocs(q);
+      const accountDoc = querySnapshot.docs[0];
+      const accountDocRef = doc(db, "accounts", accountDoc.id);
+      batchWrite.update(accountDocRef, {
+        totalUsed: increment(numericPaidTransport),
+      });
+      const transportFeeUsageRef = doc(transportFeeUsageCollection);
+      const { truckNumber, waybillNumber, dateLoaded, dispatchOfficer } =
+        payload;
+      batchWrite.set(transportFeeUsageRef, {
+        truckNumber,
+        waybillNumber,
+        dateLoaded,
+        dispatchOfficer,
+        transportFeePaid: numericPaidTransport,
+        createdAt: serverTimestamp(),
+      });
+    }
+
     // Create a new document reference with an auto-generated unique ID
     const truckDocRef = doc(trucksCollection);
 
@@ -173,6 +224,7 @@ export const createNewSaleDispatch = async (payload) => {
 
     // Commit batch write
     await batchWrite.commit();
+    return truckDocRef.id;
   } catch (error) {
     console.error("Error creating a new truck document:", error);
     throw error;
@@ -194,7 +246,10 @@ export const getTrucksWithFilter = async (
       orderBy(order, "desc"),
       limit(100)
     );
+    console.log("start 2");
+
     const querySnapshot = await getDocs(q);
+    console.log("start 3");
 
     if (querySnapshot.empty) {
       console.log("No matching documents for.");
@@ -540,20 +595,37 @@ export const createProductionRun = async (data) => {
       console.log(`Production run with ID ${result} added to Firestore.`);
       return result;
     } else {
-      console.log("Failed to add production run to Firestore.");
-      return null;
+      console.error("Failed to add production run to Firestore.");
+      throw new Error("Failed to add production run to Firestore");
     }
   } catch (error) {
     throw new Error(error);
   }
 };
 
-export const getAllProductionRuns = async () => {
+export const getAllProductionRuns = async (pageParam) => {
+  console.log(pageParam);
+
   try {
     const productionRunsCollection = collection(db, "production runs");
-    const querySnapshot = await getDocs(
-      query(productionRunsCollection, orderBy("createdAt", "desc"))
-    );
+
+    let q;
+    if (pageParam) {
+      q = query(
+        productionRunsCollection,
+        orderBy("createdAt", "desc"),
+        startAfter(pageParam),
+        limit(5)
+      );
+    } else {
+      q = query(
+        productionRunsCollection,
+        orderBy("createdAt", "desc"),
+        limit(5)
+      );
+    }
+
+    const querySnapshot = await getDocs(q);
 
     const productionRuns = [];
 
@@ -567,7 +639,12 @@ export const getAllProductionRuns = async () => {
       productionRuns.push(productionRun);
     });
 
-    return productionRuns;
+    const lastDoc = productionRuns[productionRuns.length - 1];
+    const newNextPageToken = lastDoc ? lastDoc.createdAt : null;
+
+    console.log(newNextPageToken);
+
+    return { data: productionRuns, nextPageToken: newNextPageToken };
   } catch (error) {
     console.error("Error fetching production runs:", error);
     throw error; // Rethrow the error for higher-level error handling.
@@ -1145,9 +1222,21 @@ export const deleteTruckData = async (
 
 export const addSalary = async (salaryData) => {
   try {
-    const salariesCollection = collection(db, "salaries");
-    const docRef = await addDoc(salariesCollection, salaryData);
-    return docRef.id; // Returning the document ID if needed
+    const salaryExists = await getSalariesByYearAndMonth(
+      salaryData.year,
+      salaryData.month
+    );
+    console.log(salaryExists);
+    if (salaryExists.length === 0) {
+      const salariesCollection = collection(db, "salaries");
+      const docRef = await addDoc(salariesCollection, {
+        ...salaryData,
+        createdAt: serverTimestamp(),
+      });
+      return docRef.id;
+    } else {
+      throw new Error("The Salary For this Month Already Exists");
+    }
   } catch (error) {
     console.error("Error adding salary to Firestore: ", error.message);
     throw error; // Re-throwing the error for further handling
@@ -1157,7 +1246,11 @@ export const addSalary = async (salaryData) => {
 export const getAllSalaries = async () => {
   try {
     const salariesCollection = collection(db, "salaries");
-    const querySnapshot = await getDocs(salariesCollection);
+
+    const q = query(salariesCollection, orderBy("createdAt", "desc"));
+
+    const querySnapshot = await getDocs(q);
+
     const salaries = querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -1195,7 +1288,10 @@ export const getSalaryById = async (salaryId) => {
 export const addStaff = async (payload) => {
   try {
     const staffsCollection = collection(db, "staffs");
-    const docRef = await addDoc(staffsCollection, payload);
+    const docRef = await addDoc(staffsCollection, {
+      ...payload,
+      createdAt: serverTimestamp(),
+    });
     return docRef.id; // Returning the document ID if needed
   } catch (error) {
     console.error("Error adding staff: ", error.message);
@@ -1206,7 +1302,10 @@ export const addStaff = async (payload) => {
 export const getAllStaffs = async () => {
   try {
     const staffsCollection = collection(db, "staffs");
-    const querySnapshot = await getDocs(staffsCollection);
+
+    const q = query(staffsCollection, orderBy("createdAt", "desc"));
+
+    const querySnapshot = await getDocs(q);
     const staffs = querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
@@ -1224,7 +1323,8 @@ export const getSalaryPaymentsByYearAndMonth = async (year, month) => {
     const q = query(
       salaryPaymentsCollection,
       where("year", "==", year),
-      where("month", "==", month)
+      where("month", "==", month),
+      orderBy("createdAt")
     );
 
     const querySnapshot = await getDocs(q);
@@ -1239,6 +1339,183 @@ export const getSalaryPaymentsByYearAndMonth = async (year, month) => {
       "Error fetching salary payments from Firestore: ",
       error.message
     );
+    throw error;
+  }
+};
+
+export const getSalariesByYearAndMonth = async (year, month) => {
+  try {
+    const salariesCollection = collection(db, "salaries");
+    const q = query(
+      salariesCollection,
+      where("year", "==", year),
+      where("month", "==", month),
+      orderBy("createdAt", "desc")
+    );
+
+    const querySnapshot = await getDocs(q);
+    const salaries = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return salaries;
+  } catch (error) {
+    console.error("Error fetching salaries: ", error.message);
+    throw error;
+  }
+};
+
+export const addSalaryPayment = async (payload) => {
+  try {
+    const salaryPaymentsCollection = collection(db, "salaryPayments");
+    const docRef = await addDoc(salaryPaymentsCollection, {
+      ...payload,
+      createdAt: serverTimestamp(),
+    });
+    return docRef;
+  } catch (error) {
+    console.error("Error adding salary payment to Firestore:", error.message);
+    throw error;
+  }
+};
+
+export const addTransportFeePayment = async (payload) => {
+  const batch = writeBatch(db);
+  try {
+    const paymentsCollection = collection(db, "transport_fee_payments");
+    const paymentRef = doc(paymentsCollection);
+    batch.set(paymentRef, { ...payload, createdAt: serverTimestamp() });
+    const accountsCollection = collection(db, "accounts");
+    const q = query(accountsCollection, where("name", "==", "transportFee"));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const accountDoc = querySnapshot.docs[0];
+      const accountDocRef = doc(db, "accounts", accountDoc.id);
+      batch.update(accountDocRef, {
+        totalPaid: increment(payload.amount),
+      });
+      await batch.commit();
+    } else {
+      console.error(
+        "TransportFee document does not exist in the accounts collection."
+      );
+      throw new Error("Failed to update TotalPaid: Document not found");
+    }
+  } catch (error) {
+    console.error("Error adding payment to Firestore:", error.message);
+    throw new Error("Failed to add payment to Firestore");
+  }
+};
+
+export const getTransportFeeInfo = async () => {
+  try {
+    const accountsCollection = collection(db, "accounts");
+    const q = query(accountsCollection, where("name", "==", "transportFee"));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const accountDoc = querySnapshot.docs[0];
+      return accountDoc.data();
+    } else {
+      throw new Error("Failed to get transport fee info");
+    }
+  } catch (error) {
+    console.error("Error getting transport fee info:", error.message);
+    throw error;
+  }
+};
+
+export const getAllTransportFeePayments = async () => {
+  try {
+    const paymentsCollection = collection(db, "transport_fee_payments");
+
+    const q = query(paymentsCollection, orderBy("createdAt", "desc"));
+
+    const querySnapshot = await getDocs(q);
+
+    const payments = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    return payments;
+  } catch (error) {
+    console.error("Error fetching payments: ", error.message);
+    throw error;
+  }
+};
+
+export const getAllTransportFeeUsage = async () => {
+  try {
+    const usageCollection = collection(db, "transport_fee_usage");
+
+    const q = query(usageCollection, orderBy("createdAt", "desc"));
+
+    const querySnapshot = await getDocs(q);
+
+    const usage = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    return usage;
+  } catch (error) {
+    console.error("Error fetching Usage Data: ", error.message);
+    throw error;
+  }
+};
+
+export const deleteProductionRunById = async (documentId) => {
+  const batch = writeBatch(db);
+
+  try {
+    const productionRunRef = doc(db, "production runs", documentId);
+    const docSnap = await getDoc(productionRunRef);
+    const { finishedProduct, quantityProduced, rawMaterialsUsed } =
+      docSnap.data();
+    const finishedProductRef = doc(db, "items", finishedProduct);
+
+    // decrement product produced
+    batch.update(finishedProductRef, {
+      quantityProduced: increment(-quantityProduced),
+      availableInProduction: increment(-quantityProduced),
+    });
+
+    // decrement raw materials
+
+    for (const rawMaterial of rawMaterialsUsed) {
+      const materialRef = doc(db, "items", rawMaterial.material);
+      const quantity = Number(rawMaterial.quantity);
+
+      batch.update(materialRef, {
+        availableInProduction: increment(+quantity),
+        totalUtilization: increment(-quantity),
+      });
+    }
+
+    batch.delete(productionRunRef);
+    await batch.commit();
+    return documentId;
+  } catch (error) {
+    console.error("Error deleting production run:", error);
+    throw error;
+  }
+};
+
+export const getProductionRunById = async (id) => {
+  try {
+    const runRef = doc(db, "production runs", id);
+    const docSnapshot = await getDoc(runRef);
+    if (docSnapshot.exists()) {
+      const runData = {
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
+      };
+      return runData;
+    } else {
+      console.error("Production Run not found.");
+      throw new Error("Production not found");
+    }
+  } catch (error) {
+    console.error("Error fetching Production: ", error.message);
     throw error;
   }
 };

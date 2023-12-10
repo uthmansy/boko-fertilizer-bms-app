@@ -1,10 +1,11 @@
 import { useState } from "react";
 import Modal from "./Modal";
 import { addSalary } from "../util/crud";
+import { useQueryClient } from "react-query";
 
 const SalaryForm = () => {
   const currentYear = new Date().getFullYear();
-
+  const queryClient = useQueryClient();
   const months = [
     "January",
     "February",
@@ -48,7 +49,12 @@ const SalaryForm = () => {
         message: `Salary Created Successfully`,
         isError: false,
       });
+      setFormData({
+        month: "",
+        year: currentYear.toString(),
+      });
       setIsSubmitting(false);
+      queryClient.invalidateQueries("getSalaries");
     } catch (error) {
       console.error(error);
       setModalData({

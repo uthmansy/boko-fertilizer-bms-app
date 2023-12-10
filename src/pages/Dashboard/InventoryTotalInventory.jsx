@@ -6,8 +6,12 @@ import { Route, Routes } from "react-router-dom";
 import { useItems } from "../../contexts/itemsContext";
 import { useMenu } from "../../contexts/menuContext";
 import { useEffect } from "react";
+import ButtonPrimary from "../../components/buttons/ButtonPrimary";
+import { useQueryClient } from "react-query";
 
 export default function InventoryTotalInventory() {
+  const queryClient = useQueryClient();
+
   const [refresh, setRefresh] = useState(0);
 
   const { setIsMenuOpen } = useMenu();
@@ -31,7 +35,11 @@ export default function InventoryTotalInventory() {
         ]}
       />
       <div className='mb-5'>
-        <RefreshButton refresh={refresh} setRefresh={setRefresh} />
+        <ButtonPrimary
+          onClick={() => queryClient.invalidateQueries("getItemInventory")}
+        >
+          Refresh
+        </ButtonPrimary>
       </div>
       <Routes>
         <Route exact path='/*' element={<RawMaterials refresh={refresh} />} />
@@ -49,7 +57,7 @@ const RawMaterials = ({ refresh }) => {
       {items
         ?.filter((item) => item.type === "raw")
         .map((item, index) => (
-          <ItemTotalInventory key={index} item={item.name} refresh={refresh} />
+          <ItemTotalInventory key={index} item={item} refresh={refresh} />
         ))}
     </div>
   );
@@ -63,7 +71,7 @@ const Products = ({ refresh }) => {
       {items
         ?.filter((item) => item.type === "product")
         .map((item, index) => (
-          <ItemTotalInventory key={index} item={item.name} refresh={refresh} />
+          <ItemTotalInventory key={index} item={item} refresh={refresh} />
         ))}
     </div>
   );

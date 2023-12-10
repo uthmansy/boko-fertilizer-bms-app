@@ -18,12 +18,14 @@ import { useItems } from "../contexts/itemsContext";
 import { useMenu } from "../contexts/menuContext";
 import ButtonPrimary from "./buttons/ButtonPrimary";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "react-query";
 
-function DispatchForm({ setDispatchData }) {
+function DispatchForm() {
   const { items: allItems } = useItems();
   const { setIsMenuOpen } = useMenu();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const itemTypes = ["Raw Material", "Product"];
   const origins = ["Port Harcourt", "Lagos", "Others"];
@@ -161,7 +163,6 @@ function DispatchForm({ setDispatchData }) {
       dispatchOfficer: user.name,
       dispatchOfficerPhone: user.phone,
     };
-
     try {
       if (user.role === "inventory") {
         const inventoryItem = await getItemById(item);
@@ -169,14 +170,16 @@ function DispatchForm({ setDispatchData }) {
           throw new Error("Quantity Exeeds Balance");
         }
       }
-
+      let truckId;
       if (payload.orderNumber.charAt(0) === "S") {
-        await createNewSaleDispatch(payload);
+        truckId = await createNewSaleDispatch(payload);
       } else {
-        await createNewDispatch(payload);
+        truckId = await createNewDispatch(payload);
       }
-      setDispatchData(payload);
-      navigate("waybill");
+      queryClient.invalidateQueries("getTransportFeeInfo");
+      queryClient.invalidateQueries("getAllTransportFeeUsage");
+      queryClient.invalidateQueries("getAllTransitTrucks");
+      navigate(`/transit/waybill/${truckId}`);
     } catch (error) {
       console.error(error);
       setIsLoadingError(error.message);

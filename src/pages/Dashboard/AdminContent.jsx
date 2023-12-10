@@ -10,6 +10,7 @@ import ReceivedTrucks from "./ReceivedTrucks.jsx";
 import ViewProductionRuns from "../../components/ViewProductionRuns.jsx";
 import Salaries from "./Salaries.jsx";
 import Staffs from "./Staffs.jsx";
+import TransportFee from "./TransaportFee.jsx";
 
 export default function AdminContent() {
   return (
@@ -26,6 +27,7 @@ export default function AdminContent() {
         <Route path='/production/*' element={<ViewProductionRuns />} />
         <Route path='/salaries/*' element={<Salaries />} />
         <Route path='/staffs/*' element={<Staffs />} />
+        <Route path='/transport-fee/*' element={<TransportFee />} />
       </Routes>
     </div>
   );

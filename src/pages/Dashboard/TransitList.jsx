@@ -49,6 +49,12 @@ function TransitList({ trucks }) {
           <ButtonPrimary>Edit</ButtonPrimary>
         </Link>
       );
+    if (user.role === "logistics" || user.role === "admin")
+      data.waybillButton = (
+        <Link to={`waybill/${id}`}>
+          <ButtonPrimary>waybill</ButtonPrimary>
+        </Link>
+      );
     return data;
   });
 
@@ -64,6 +70,8 @@ function TransitList({ trucks }) {
   ];
   if (user.role === "admin") trucksHeader.push("Driver Phone");
   if (user.role === "admin") trucksHeader.push("Edit");
+  if (user.role === "admin" || user.role === "logistics")
+    trucksHeader.push("View");
   if (user.role === "inventory" || user.role === "admin")
     trucksHeader.push("Receive");
 

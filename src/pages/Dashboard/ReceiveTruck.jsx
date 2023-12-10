@@ -12,8 +12,9 @@ import {
   moneyStringToNumber,
 } from "../../util/functions";
 import TruckInfo from "../../components/TruckInfo";
+import { useQueryClient } from "react-query";
 
-function ReceiveTruck({ setTrucks, trucks }) {
+function ReceiveTruck() {
   const { truckId } = useParams();
   const navigate = useNavigate();
 
@@ -76,12 +77,7 @@ function ReceiveTruck({ setTrucks, trucks }) {
             <TruckInfo truck={truck} />
           </div>
           <div className='w-1/2'>
-            <ReceiveForm
-              setTrucks={setTrucks}
-              trucks={trucks}
-              truck={truck}
-              truckId={truckId}
-            />
+            <ReceiveForm truck={truck} truckId={truckId} />
           </div>
         </div>
       ) : (
@@ -91,9 +87,10 @@ function ReceiveTruck({ setTrucks, trucks }) {
   );
 }
 
-const ReceiveForm = ({ setTrucks, trucks, truck, truckId }) => {
+const ReceiveForm = ({ truck, truckId }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const {
     qtyBagsDispatched,
@@ -143,7 +140,8 @@ const ReceiveForm = ({ setTrucks, trucks, truck, truckId }) => {
     };
     try {
       await receiveTruck(truckId, receivedData, destination);
-      setTrucks(trucks.filter((truck) => truck.id != truckId));
+      queryClient.invalidateQueries("getAllTransitTrucks");
+
       setModalData({
         isOpen: true,
         message: "Truck Received Successfully",
