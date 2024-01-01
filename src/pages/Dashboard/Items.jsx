@@ -7,6 +7,7 @@ import Spinner from "../../components/Spinner";
 import InfoAlert from "../../components/alerts/InfoAlert";
 import Modal from "../../components/Modal";
 import { useMenu } from "../../contexts/menuContext";
+import { useQueryClient } from "react-query";
 
 export default function Items() {
   const { setIsMenuOpen } = useMenu();
@@ -118,6 +119,8 @@ const ItemsList = ({ items, type }) => {
 };
 
 const CreateNew = () => {
+  const queryClient = useQueryClient();
+
   const [isLoading, setIsLoading] = useState(false);
   const [modalData, setModalData] = useState({
     isOpen: false,
@@ -155,6 +158,8 @@ const CreateNew = () => {
         message: "Successfully Created New Item",
         isError: false,
       });
+      queryClient.invalidateQueries("getItems");
+      queryClient.invalidateQueries("getItemInventory");
     } catch (error) {
       console.error(error);
       setIsLoading(false); // Set isLoading to false on error

@@ -7,6 +7,7 @@ import ButtonGroup from "../../components/buttons/ButtonGroup";
 import InfoAlert from "../../components/alerts/InfoAlert";
 import { formatTimestamp } from "../../util/functions";
 import ButtonPrimary from "../../components/buttons/ButtonPrimary";
+import { companyFullName } from "../../constants/company";
 
 export default function AdminTransit() {
   const [rawTrucks, setRawTrucks] = useState(null);
@@ -20,7 +21,7 @@ export default function AdminTransit() {
       const trucks = await getTrucksWithFilter("status", "transit");
       setRawTrucks(trucks);
       setTrucks(
-        trucks?.filter((truck) => truck.destination === "Boko Fertilizer")
+        trucks?.filter((truck) => truck.destination === companyFullName)
       );
       setIsLoadingTrucks(false);
     };
@@ -97,9 +98,9 @@ function AdminTransitList({ setDestinationFilter, trucks }) {
     <div>
       <div className='mb-5'>
         <ButtonGroup
-          onClick1={() => setDestinationFilter("Boko Fertilizer")}
+          onClick1={() => setDestinationFilter(companyFullName)}
           onClick2={() => setDestinationFilter("Others")}
-          child1='Boko Fertilizer'
+          child1={companyFullName}
           child2='Others'
         />
       </div>

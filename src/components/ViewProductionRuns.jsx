@@ -5,19 +5,17 @@ import {
   getProductionRunById,
 } from "../util/crud";
 import DefaultTable from "./tables/DefaultTable";
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "react-query";
 import ButtonPrimary from "./buttons/ButtonPrimary";
 import { useState } from "react";
 import InfoModal from "./InfoModal";
 import { useAuth } from "../contexts/authContext";
-import { Link, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { Link, Route, Routes, useParams } from "react-router-dom";
 import PrintDoc from "./PrintDoc";
-import IMAGES from "../assets/images/Images";
+import DocumentHeader from "./DocumentHeader";
+import useSerielData from "../hooks/useSerielData";
+import useMapProductions from "../hooks/useMapProduction";
+import { companyFullName } from "../constants/company";
 
 const fetchProductionRuns = async ({ pageParam = null }) => {
   try {
@@ -32,16 +30,22 @@ const fetchProductionRuns = async ({ pageParam = null }) => {
 function ViewProductionRuns() {
   const { user } = useAuth();
 
-  const { isLoading, error, data, fetchNextPage, hasNextPage, isFetching } =
-    useInfiniteQuery({
-      queryKey: ["getProductionRuns"],
-      queryFn: fetchProductionRuns,
-      getNextPageParam: (lastPage, pages) => lastPage.nextPageToken,
-    });
+  const {
+    isLoading,
+    error,
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    refetch,
+  } = useInfiniteQuery({
+    queryKey: ["getProductionRuns"],
+    queryFn: fetchProductionRuns,
+    getNextPageParam: (lastPage) => lastPage.nextPageToken,
+  });
 
-  const [productionRuns, setProductionRuns] = useState(null);
   const [openModal, setOpenModal] = useState(false);
-  const [serielData, setSerielData] = useState([]);
+  const [serielData, setSerielData] = useSerielData(data);
 
   const mutation = useMutation({
     mutationFn: (id) => deleteProductionRunById(id),
@@ -62,53 +66,7 @@ function ViewProductionRuns() {
     }
   };
 
-  useEffect(() => {
-    if (data) {
-      let serielData = [];
-
-      data.pages.forEach((page) => {
-        page.data.forEach((data) => serielData.push(data));
-      });
-      setSerielData(serielData);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    const mappedResult = serielData.map((run) => {
-      const {
-        date,
-        finishedProduct,
-        quantityProduced,
-        rawMaterialsUsed,
-        runnerName,
-        id,
-      } = run;
-      const data = {
-        date,
-        finishedProduct,
-        quantityProduced,
-        rawMaterialsUsed: rawMaterialsUsed.map((materialUsed, index) => (
-          <li key={index} className=''>
-            {materialUsed.material}: {materialUsed.quantity}
-          </li>
-        )),
-        runnerName,
-        viewButton: (
-          <ButtonPrimary>
-            <Link to={id}>View</Link>
-          </ButtonPrimary>
-        ),
-      };
-
-      if (user.role === "admin")
-        data.deleteButton = (
-          <ButtonPrimary onClick={() => handleDelete(id)}>Delete</ButtonPrimary>
-        );
-
-      return data;
-    });
-    setProductionRuns(mappedResult);
-  }, [serielData]);
+  const productionRuns = useMapProductions(serielData, handleDelete);
 
   const tableHeader = [
     "SN",
@@ -132,6 +90,9 @@ function ViewProductionRuns() {
           path='/*'
           element={
             <>
+              <div className='mb-5'>
+                <ButtonPrimary onClick={refetch}>Refresh</ButtonPrimary>
+              </div>
               <DefaultTable
                 tableHeader={tableHeader}
                 tableData={productionRuns}
@@ -192,16 +153,9 @@ const ViewProductionRun = () => {
   ) : (
     <PrintDoc>
       <div className='bg-white p-10'>
-        <div className={`mb-20 flex items-center flex-col`}>
-          <img className='w-24' src={IMAGES.logo} alt='logo' />
-
-          <h1 className='font-black text-3xl uppercase text-center'>
-            Boko Fertilizer Daily Production
-          </h1>
-          <div className=''>
-            No.60/61 UNGOGO ROAD KANO, KANO STATE UNGOGO, 700105, Kano
-          </div>
-        </div>
+        <DocumentHeader
+          heading={`${companyFullName} Daily Production Report`}
+        />
         <div className='font-medium text-gray-500 uppercase tracking-wider mb-20'>
           <p>Date:</p>
           <div>{data.date}</div>

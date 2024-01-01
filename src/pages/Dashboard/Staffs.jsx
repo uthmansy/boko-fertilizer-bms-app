@@ -2,8 +2,15 @@ import { Route, Routes } from "react-router-dom";
 import TopNavBar from "../../components/TopNavBar";
 import StaffForm from "../../components/StaffForm";
 import StaffList from "../../components/StaffList";
+import { useMenu } from "../../contexts/menuContext";
+import { useEffect } from "react";
 
 export default function Staffs() {
+  const { setIsMenuOpen } = useMenu();
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, []);
   return (
     <div>
       <TopNavBar

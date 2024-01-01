@@ -56,8 +56,8 @@ const StaffForm = () => {
       phoneNumber,
       accountNumber,
       salaryAmount: moneyStringToNumber(salaryAmount),
+      status: "active",
     };
-    console.log(payload);
     try {
       setIsSubmitting(true);
       await addStaff(payload);

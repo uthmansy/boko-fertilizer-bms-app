@@ -10,103 +10,38 @@ import { useAuth } from "../../contexts/authContext";
 import TrucksList from "../../components/TruckList";
 import ButtonPrimary from "../../components/buttons/ButtonPrimary";
 import EditTruck from "../../components/EditTruck";
-import { useQuery } from "react-query";
+import { useInfiniteQuery, useQuery } from "react-query";
+import useSerielData from "../../hooks/useSerielData";
+import DefaultTable from "../../components/tables/DefaultTable";
+import useMapReceivedTrucks from "../../hooks/useMapReceivedTrucks";
+import SearchTruck from "../../components/SearchTruck";
 
 function ReceivedTrucks() {
-  const { user } = useAuth();
+  const {
+    isLoading,
+    error,
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    refetch,
+  } = useInfiniteQuery({
+    queryKey: ["getReceivedTrucks"],
+    queryFn: ({ pageParam = null }) =>
+      getTrucksWithFilter("status", "received", "dateReceived", pageParam),
+    getNextPageParam: (lastPage) => lastPage.nextPageToken,
+  });
 
-  const fetchAllReceivedTrucks = async () => {
-    try {
-      const result = await getTrucksWithFilter(
-        "status",
-        "received",
-        "dateReceived"
-      );
-      const mappedResult = result.map((truck) => {
-        // Extract only the desired key-value pairs
-        const {
-          truckNumber,
-          origin,
-          destination,
-          otherDestination,
-          otherOrigin,
-          waybillNumber,
-          // orderNumber,
-          dateReceived,
-          item,
-          qtyBagsDispatched,
-          qtyBagsReceived,
-          id,
-        } = truck; // Create a new object with the extracted key-value pairs
-
-        const data = {
-          truckNumber,
-          origin,
-          destination,
-          item,
-          qtyBagsDispatched,
-          qtyBagsReceived,
-          waybillNumber,
-          // orderNumber: orderNumber || "NIL",
-          dateReceived: formatTimestamp(dateReceived),
-        };
-        if (destination === "Others") data.destination = otherDestination;
-
-        if (origin === "Others") data.origin = otherOrigin;
-        if (user.role === "inventory" || user.role === "admin")
-          data.viewWaybillButton = (
-            <Link
-              to={`waybill/${id}`}
-              className='hover:underline bg-gray-500 p-2 px-3 text-white w-full inline-block text-center'
-            >
-              View
-            </Link>
-          );
-        if (user.role === "admin")
-          data.editButton = (
-            <Link to={`edit/${id}`}>
-              <ButtonPrimary>Edit</ButtonPrimary>
-            </Link>
-          );
-        return data;
-      });
-      return mappedResult;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const { isLoading, error, data, isFetching, refetch } = useQuery(
-    "getReceivedTrucks",
-    fetchAllReceivedTrucks
-  );
+  const [serielData] = useSerielData(data);
 
   const { setIsMenuOpen } = useMenu();
   useEffect(() => {
     setIsMenuOpen(false);
   }, []);
 
-  const trucksHeader = [
-    "SN",
-    "Truck Number",
-    "Origin",
-    "Destination",
-    "Item",
-    "Qty Dispatched",
-    "Qty Received",
-    "Waybill Number", // "Order Number",
-    "Date Received",
-  ];
+  const { trucks, tableHeader } = useMapReceivedTrucks(serielData);
 
-  useEffect(() => {
-    console.log(data);
-  }, [data]);
-
-  if (user.role === "inventory" || user.role === "admin")
-    trucksHeader.push("Waybill");
-  if (user.role === "admin") trucksHeader.push("Edit");
-
-  return isLoading || isFetching ? (
+  return isLoading ? (
     <div className='flex items-center justify-center h-48 w-full'>
       <Spinner />
     </div>
@@ -123,7 +58,23 @@ function ReceivedTrucks() {
         <Route
           exact
           path='/*'
-          element={<TrucksList allTrucks={data} trucksHeader={trucksHeader} />}
+          element={
+            <>
+              <SearchTruck status='received' />
+              <TrucksList allTrucks={trucks} trucksHeader={tableHeader} />
+              {/* <DefaultTable tableHeader={tableHeader} tableData={trucks} /> */}
+              {hasNextPage && (
+                <nav className='mt-5 flex items-center justify-center'>
+                  <ButtonPrimary
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetching}
+                  >
+                    {isFetching ? "Loading..." : "Load more"}
+                  </ButtonPrimary>
+                </nav>
+              )}
+            </>
+          }
         />
         <Route path='/waybill/:truckId' element={<ReturnWaybillView />} />
         <Route path='/edit/:truckId' element={<EditTruck />} />

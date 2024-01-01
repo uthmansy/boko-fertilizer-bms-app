@@ -11,6 +11,7 @@ import { useQueryClient } from "react-query";
 
 export default function InventoryTotalInventory() {
   const queryClient = useQueryClient();
+  const { items } = useItems();
 
   const [refresh, setRefresh] = useState(0);
 
@@ -42,16 +43,26 @@ export default function InventoryTotalInventory() {
         </ButtonPrimary>
       </div>
       <Routes>
-        <Route exact path='/*' element={<RawMaterials refresh={refresh} />} />
-        <Route exact path='/products' element={<Products />} />
+        <Route
+          exact
+          path='/*'
+          element={
+            <RawMaterials key={items.length} items={items} refresh={refresh} />
+          }
+        />
+        <Route
+          exact
+          path='/products'
+          element={
+            <Products key={items.length} items={items} refresh={refresh} />
+          }
+        />
       </Routes>
     </div>
   );
 }
 
-const RawMaterials = ({ refresh }) => {
-  const { items } = useItems();
-
+const RawMaterials = ({ refresh, items }) => {
   return (
     <div className='grid grid-cols-1 md:grid-cols-2 gap-5'>
       {items
@@ -63,9 +74,7 @@ const RawMaterials = ({ refresh }) => {
   );
 };
 
-const Products = ({ refresh }) => {
-  const { items } = useItems();
-
+const Products = ({ refresh, items }) => {
   return (
     <div className='grid grid-cols-1 md:grid-cols-2 gap-5'>
       {items

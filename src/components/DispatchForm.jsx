@@ -19,6 +19,11 @@ import { useMenu } from "../contexts/menuContext";
 import ButtonPrimary from "./buttons/ButtonPrimary";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "react-query";
+import {
+  companyFullName,
+  companyName,
+  companyShortCode,
+} from "../constants/company";
 
 function DispatchForm() {
   const { items: allItems } = useItems();
@@ -29,14 +34,14 @@ function DispatchForm() {
 
   const itemTypes = ["Raw Material", "Product"];
   const origins = ["Port Harcourt", "Lagos", "Others"];
-  const destinations = ["Boko Fertilizer", "Others"];
+  const destinations = [companyFullName, "Others"];
   const transportFeeStatuses = ["Not Fully Paid", "Fully Paid"];
 
   const [dateLoaded, setDateLoaded] = useState("");
   const [origin, setOrigin] = useState("Port Harcourt");
   const [beneficiary, setBeneficiary] = useState("");
   const [otherOrigin, setOtherOrigin] = useState("");
-  const [destination, setDestination] = useState("Boko Fertilizer");
+  const [destination, setDestination] = useState(companyFullName);
   const [otherDestination, setOtherDestination] = useState("");
   const [item, setItem] = useState("");
   const [otherItem, setOtherItem] = useState("");
@@ -71,7 +76,7 @@ function DispatchForm() {
       Abuja: "AB", // Add more mappings as needed
     },
     destination: {
-      "Boko Fertilizer": "BKF", // Add more mappings as needed
+      [companyFullName]: companyShortCode, // Add more mappings as needed
     },
     items: {},
   });
@@ -118,7 +123,7 @@ function DispatchForm() {
     const lastSequenceNumber = await getLastWaybillSequence(item);
     const sequenceNumber = lastSequenceNumber + 1;
     const waybillNumber = generateWaybillNumber({
-      origin: user.role === "inventory" ? "Boko Fertilizer" : origin,
+      origin: user.role === "inventory" ? companyFullName : origin,
       destination,
       item,
       sequenceNumber,
@@ -127,7 +132,7 @@ function DispatchForm() {
     const payload = {
       dateLoaded: getDateTimestamp(dateLoaded),
       transactionType: currentOrder?.type,
-      origin: user.role === "inventory" ? "Boko Fertilizer" : origin,
+      origin: user.role === "inventory" ? companyFullName : origin,
       beneficiary,
       orderNumber,
       otherOrigin,
@@ -179,6 +184,7 @@ function DispatchForm() {
       queryClient.invalidateQueries("getTransportFeeInfo");
       queryClient.invalidateQueries("getAllTransportFeeUsage");
       queryClient.invalidateQueries("getAllTransitTrucks");
+      queryClient.invalidateQueries("getDeliveredTrucks");
       navigate(`/transit/waybill/${truckId}`);
     } catch (error) {
       console.error(error);
@@ -215,7 +221,7 @@ function DispatchForm() {
         Abuja: "AB", // Add more mappings as needed
       },
       destination: {
-        "Boko Fertilizer": "BKF", // Add more mappings as needed
+        [companyFullName]: companyShortCode, // Add more mappings as needed
       },
       items: { ...itemsMap },
     });
@@ -265,7 +271,7 @@ function DispatchForm() {
     const fetchTransactions = async () => {
       try {
         const transactionsPickUpLocation =
-          user.role === "inventory" ? "boko" : "others"; // fetch transactions
+          user.role === "inventory" ? companyName : "others"; // fetch transactions
 
         const transactions = await getDispatchTransactions(
           transactionsPickUpLocation,

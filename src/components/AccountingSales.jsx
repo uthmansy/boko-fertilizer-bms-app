@@ -27,6 +27,11 @@ import ButtonPrimary from "./buttons/ButtonPrimary";
 import PrintDoc from "./PrintDoc";
 import IMAGES from "../assets/images/Images";
 import { useMenu } from "../contexts/menuContext";
+import {
+  companyAddress,
+  companyFullName,
+  companyName,
+} from "../constants/company";
 
 const AccountingSales = () => {
   const { setIsMenuOpen } = useMenu();
@@ -180,7 +185,7 @@ const CreateNew = () => {
       const lastSequenceNumber = await getLastTransactionSequence("sale");
 
       const payload = {
-        beneficiaryName: "Boko Fertilizer",
+        beneficiaryName: companyFullName,
         beneficiaryPhone: "08169669906",
         buyerName,
         buyerPhone,
@@ -304,7 +309,7 @@ const CreateNew = () => {
             className='w-full p-2 border rounded'
           >
             <option value=''>Select an item</option>
-            <option value='boko'>Boko Fertilizer Warehouse</option>
+            <option value={companyName}>{companyFullName} Warehouse</option>
             <option value='others'>Others</option>
           </select>
         </div>
@@ -412,6 +417,7 @@ const AllSales = () => {
                     <th className='p-3 text-left bg-gray-100'>Amount</th>
                     <th className='p-3 text-left bg-gray-100'>Status</th>
                     <th className='p-3 text-left bg-gray-100'>Items Sold</th>
+                    <th className='p-3 text-left bg-gray-100'>Date</th>
                     <th className='p-3 text-left bg-gray-100'>Action</th>
                   </tr>
                 </thead>
@@ -434,6 +440,7 @@ const AllSales = () => {
                           ))}
                         </ul>
                       </td>
+                      <td className='p-3'>{sale.date}</td>
                       <td className='p-3'>
                         <Link
                           to={`/sales/all/${sale.id}`}
@@ -706,11 +713,9 @@ const PrintPage = ({ transaction }) => {
             <img className='w-24' src={IMAGES.logo} alt='logo' />
 
             <h1 className='font-black text-3xl uppercase text-center'>
-              Boko Fertilizer Transaction Record
+              {companyFullName} Transaction Record
             </h1>
-            <div className=''>
-              No.60/61 UNGOGO ROAD KANO, KANO STATE UNGOGO, 700105, Kano
-            </div>
+            <div className=''>{companyAddress}</div>
           </div>
           <div className='mb-5'>
             <div className='w-1/2'></div>

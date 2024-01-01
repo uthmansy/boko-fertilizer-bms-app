@@ -6,6 +6,7 @@ import {
 } from "../util/functions";
 import { useAuth } from "../contexts/authContext";
 import { receiveTruck, updateInventoryRecord } from "../util/crud";
+import { companyFullName } from "../constants/company";
 
 export default function InventoryReceiveForm({
   truck,
@@ -76,7 +77,7 @@ export default function InventoryReceiveForm({
     try {
       //call a function to update received status of truck with reception info
       const updatedTruck = await receiveTruck(truckId, receivedData);
-      if (destination === "Boko Fertilizer") {
+      if (destination === companyFullName) {
         await updateInventoryRecord(item, "received", qtyBagsReceived);
       }
       setReceivedTruck(updatedTruck.data());

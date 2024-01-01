@@ -1,10 +1,10 @@
 import { useMenu } from "../contexts/menuContext";
-import ButtonPrimary from "./buttons/ButtonPrimary";
+import Logout from "./Logout";
 
 export default function DashboardView({ Sidebar, MainContent }) {
   const { isMenuOpen, setIsMenuOpen } = useMenu();
 
-  return (
+  return Sidebar && MainContent ? (
     <>
       <div className='fixed top-5 right-5 z-50 lg:invisible'>
         <button
@@ -65,5 +65,12 @@ export default function DashboardView({ Sidebar, MainContent }) {
         ></div>
       )}
     </>
+  ) : (
+    <div>
+      <div className='bg-red-500 text-white p-10'>
+        Invalid User Role
+        <Logout />
+      </div>
+    </div>
   );
 }

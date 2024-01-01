@@ -18,8 +18,14 @@ import { useQuery, useQueryClient } from "react-query";
 import { Route, Routes } from "react-router-dom";
 import ButtonPrimary from "../../components/buttons/ButtonPrimary";
 import DefaultTable from "../../components/tables/DefaultTable";
+import { useMenu } from "../../contexts/menuContext";
 
 export default function TransportFee() {
+  const { setIsMenuOpen } = useMenu();
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, []);
   return (
     <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
       <div className='bg-white p-5 shadow-md rounded-lg'>
@@ -173,7 +179,7 @@ const PaymentForm = () => {
           />
         </div>
         <div className='mb-4'>
-          <label className='block mb-2'>Beneficiary Name:</label>
+          <label className='block mb-2'>Account Name:</label>
           <input
             type='text'
             name='beneficiaryName'
@@ -251,7 +257,7 @@ const TransportFeeInfo = () => {
         <div className='font-bold uppercase tracking-wide'>Total Used:</div>
         <div>{formatMoney(data.totalUsed)}</div>
         <div className='font-bold uppercase tracking-wide mt-5'>Balance:</div>
-        <div className='text-5xl font-black mt-5 pb-3 border-b-4 border-black'>
+        <div className='text-3xl md:text-5xl font-black mt-5 pb-3 border-b-4 border-black'>
           {formatMoney(data.totalPaid - data.totalUsed)}
         </div>
       </div>

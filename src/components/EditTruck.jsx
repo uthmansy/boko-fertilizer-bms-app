@@ -7,13 +7,20 @@ import ButtonPrimary from "./buttons/ButtonPrimary";
 import { getDateTimestamp } from "../util/functions";
 import Modal from "./Modal";
 import Alert from "./Alert";
+import { useQueryClient } from "react-query";
+import {
+  companyFullName,
+  companyName,
+  companyShortCode,
+} from "../constants/company";
 
 export default function EditTruck() {
   const { truckId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const origins = ["Port Harcourt", "Lagos", "Others"];
-  const destinations = ["Boko Fertilizer", "Others"];
+  const destinations = [companyFullName, "Others"];
 
   const codeMappings = {
     origin: {
@@ -23,7 +30,7 @@ export default function EditTruck() {
       Others: "OTH",
     },
     destination: {
-      "Boko Fertilizer": "BKF",
+      [companyFullName]: companyShortCode,
       Others: "OTH", // Add more mappings as needed
     },
     items: {},
@@ -151,6 +158,9 @@ export default function EditTruck() {
           message: `Truck Updated Successfully`,
           isError: false,
         });
+        queryClient.invalidateQueries("getAllTransitTrucks");
+        queryClient.invalidateQueries("getReceivedTrucks");
+
         setIsUpdating(false);
       } catch (error) {
         setIsUpdating(false);
@@ -180,6 +190,8 @@ export default function EditTruck() {
           truck.item,
           truck.orderNumber
         );
+        queryClient.invalidateQueries("getAllTransitTrucks");
+
         setIsDeleting(false);
         setTruck(null);
       } catch (error) {
@@ -291,8 +303,8 @@ export default function EditTruck() {
               />
             </div>
             <div className='mb-4'>
-              <label className='block text-gray-700 text-sm font-bold mb-2'>
-                Boko Waybill Number:
+              <label className='block text-gray-700 text-sm font-bold mb-2 capitalize'>
+                {companyName} Waybill Number:
               </label>
               <input
                 className='w-full px-4 py-2 border rounded-md focus:outline-none focus:border-blue-500'

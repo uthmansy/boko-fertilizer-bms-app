@@ -20,6 +20,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { moneyStringToNumber } from "./functions";
+import { companyFullName } from "../constants/company";
 
 export const getUserByUID = async (uid) => {
   try {
@@ -187,7 +188,7 @@ export const createNewSaleDispatch = async (payload) => {
     // Set the data for the truck document
     batchWrite.set(truckDocRef, payload);
 
-    if (payload.origin === "Boko Fertilizer")
+    if (payload.origin === companyFullName)
       batchWrite.update(doc(db, "items", payload.item), {
         dispatched: increment(payload.qtyBagsDispatched),
         balance: increment(-payload.qtyBagsDispatched),
@@ -234,39 +235,41 @@ export const createNewSaleDispatch = async (payload) => {
 export const getTrucksWithFilter = async (
   filterField,
   filterValue,
-  order = "dateLoaded"
+  order = "dateLoaded",
+  pageParam
 ) => {
   try {
-    console.log("start...");
-
     const trucksRef = collection(db, "trucks");
-    const q = query(
-      trucksRef,
-      where(filterField, "==", filterValue),
-      orderBy(order, "desc"),
-      limit(100)
-    );
-    console.log("start 2");
+    const q = pageParam
+      ? query(
+          trucksRef,
+          where(filterField, "==", filterValue),
+          orderBy(order, "desc"),
+          startAfter(pageParam),
+          limit(25)
+        )
+      : query(
+          trucksRef,
+          where(filterField, "==", filterValue),
+          orderBy(order, "desc"),
+          limit(25)
+        );
 
     const querySnapshot = await getDocs(q);
-    console.log("start 3");
 
-    if (querySnapshot.empty) {
-      console.log("No matching documents for.");
-      return [];
-    }
     const trucks = [];
-    console.log("middle...");
-
     querySnapshot.forEach((doc) => {
       trucks.push({
         id: doc.id,
         ...doc.data(),
       });
     });
-    console.log("done...");
 
-    return trucks;
+    const lastDoc = trucks[trucks.length - 1];
+    const newNextPageToken = lastDoc ? lastDoc[order] : null;
+    console.log(trucks);
+
+    return { data: trucks, nextPageToken: newNextPageToken };
   } catch (error) {
     console.error("Error getting filtered trucks:", error);
     throw error;
@@ -321,7 +324,7 @@ export const receiveTruck = async (truckId, payload, destination) => {
       transportFeePaidOnReceived,
       transportFeePaidStatus,
     });
-    if (destination === "Boko Fertilizer") {
+    if (destination === companyFullName) {
       batchWrite.update(itemRef, {
         balance: increment(qtyBagsReceived),
         received: increment(qtyBagsReceived),
@@ -363,7 +366,7 @@ export const getItemTotalInventory = async (item) => {
   }
 };
 
-export const addRawMaterialRequestToFirestore = async (requestData) => {
+export const addMaterialRequest = async (requestData) => {
   try {
     const inventoryDocs = await getDocs(collection(db, "items"));
     const inventoryData = {};
@@ -399,30 +402,6 @@ export const addRawMaterialRequestToFirestore = async (requestData) => {
 
     return newRequestData; // Return the newly created request data
   } catch (error) {
-    throw error.message;
-  }
-};
-
-export const getAllRequestsFromFirestore = async () => {
-  try {
-    const requestsCollection = collection(db, "requests"); // Replace "requests" with the name of your Firestore collection
-    let queryFilter;
-    queryFilter = query(requestsCollection, orderBy("requestDate", "desc"));
-
-    const querySnapshot = await getDocs(queryFilter);
-
-    const requests = [];
-
-    querySnapshot.forEach((doc) => {
-      // Access data for each document
-      const requestData = doc.data();
-      requests.push(requestData);
-    });
-
-    return requests;
-  } catch (error) {
-    // Handle any potential errors, e.g., network issues or Firestore setup problems
-    console.error("Error fetching requests:", error);
     throw error.message;
   }
 };
@@ -465,6 +444,8 @@ export const getProductionRequests = async (statusFilter = "all") => {
 };
 
 export const approveProductionRequest = async (requestId, approver) => {
+  console.log(approver);
+  console.log(requestId);
   const requestRef = doc(db, "requests", requestId);
 
   try {
@@ -521,9 +502,10 @@ export const approveProductionRequest = async (requestId, approver) => {
     console.log(
       `Request with ID ${requestId} has been approved for production.`
     );
+    return requestId;
   } catch (error) {
     console.error("Error approving production request:", error);
-    throw new Error(error.message);
+    throw error;
   }
 };
 
@@ -604,8 +586,6 @@ export const createProductionRun = async (data) => {
 };
 
 export const getAllProductionRuns = async (pageParam) => {
-  console.log(pageParam);
-
   try {
     const productionRunsCollection = collection(db, "production runs");
 
@@ -651,6 +631,45 @@ export const getAllProductionRuns = async (pageParam) => {
   }
 };
 
+export const getAllMaterialRequests = async (pageParam) => {
+  try {
+    const requestsCollection = collection(db, "requests");
+
+    let q;
+    if (pageParam) {
+      q = query(
+        requestsCollection,
+        orderBy("requestDate", "desc"),
+        startAfter(pageParam),
+        limit(5)
+      );
+    } else {
+      q = query(requestsCollection, orderBy("requestDate", "desc"), limit(5));
+    }
+
+    const querySnapshot = await getDocs(q);
+
+    const requests = [];
+
+    querySnapshot.forEach((doc) => {
+      const requestData = doc.data();
+      // Include the document ID as well.
+      const request = {
+        id: doc.id,
+        ...requestData,
+      };
+      requests.push(request);
+    });
+
+    const lastDoc = requests[requests.length - 1];
+    const newNextPageToken = lastDoc ? lastDoc.requestDate : null;
+    return { data: requests, nextPageToken: newNextPageToken };
+  } catch (error) {
+    console.error("Error fetching requests:", error);
+    throw error;
+  }
+};
+
 export const createProductSubmission = async (data) => {
   const { productType, quantity } = data;
 
@@ -683,25 +702,21 @@ export const createProductSubmission = async (data) => {
   }
 };
 
-export const getProductSubmissions = async (filter) => {
+export const getProductSubmissions = async (nextPageToken) => {
+  console.log(nextPageToken);
   try {
     const submissionsCollection = collection(db, "submissions");
 
-    let submissionsQuery = submissionsCollection;
+    const submissionQuery = nextPageToken
+      ? query(
+          submissionsCollection,
+          orderBy("date", "desc"),
+          startAfter(nextPageToken),
+          limit(10)
+        )
+      : query(submissionsCollection, orderBy("date", "desc"), limit(10));
 
-    if (filter === "pending") {
-      submissionsQuery = query(
-        submissionsCollection,
-        where("status", "==", "pending")
-      );
-    } else if (filter === "approved") {
-      submissionsQuery = query(
-        submissionsCollection,
-        where("status", "==", "approved")
-      );
-    }
-
-    const querySnapshot = await getDocs(submissionsQuery);
+    const querySnapshot = await getDocs(submissionQuery);
 
     const submissions = [];
 
@@ -712,7 +727,10 @@ export const getProductSubmissions = async (filter) => {
       });
     });
 
-    return submissions;
+    const lastDoc = submissions[submissions.length - 1];
+    const newNextPageToken = lastDoc ? lastDoc.date : null;
+
+    return { data: submissions, nextPageToken: newNextPageToken };
   } catch (error) {
     throw error;
   }
@@ -761,7 +779,7 @@ export const approveProductReception = async (
       });
     });
 
-    return "Submission is approved.";
+    return submissionId;
   } catch (error) {
     throw error;
   }
@@ -895,7 +913,7 @@ export const getTransactions = async (type = null, status = null) => {
       transactionsQuery = query(
         transactionsCollection,
         where("type", "==", type),
-        orderBy("createdAt", "desc")
+        orderBy("date", "desc")
       );
     }
 
@@ -903,7 +921,7 @@ export const getTransactions = async (type = null, status = null) => {
       transactionsQuery = query(
         transactionsCollection,
         where("status", "==", status),
-        orderBy("createdAt", "desc")
+        orderBy("date", "desc")
       );
     }
 
@@ -912,7 +930,7 @@ export const getTransactions = async (type = null, status = null) => {
         transactionsCollection,
         where("status", "==", status),
         where("type", "==", type),
-        orderBy("createdAt", "desc")
+        orderBy("date", "desc")
       );
     }
 
@@ -1186,12 +1204,12 @@ export const deleteTruckData = async (
     const transactionSnapshot = await getDocs(transactionQuery);
 
     if (transactionSnapshot.size > 0) {
-      const transactionDoc = transactionSnapshot.docs[0];
-      const transactionData = transactionDoc.data();
-      console.log(transactionData);
+      const transactionData = transactionSnapshot.docs[0].data();
+      const transactionId = transactionSnapshot.docs[0].id;
 
-      const isPurchase = orderNumber.startsWith("P");
-      const itemsField = isPurchase ? "itemsPurchased" : "itemsSold";
+      const itemsField = orderNumber.startsWith("P")
+        ? "itemsPurchased"
+        : "itemsSold";
 
       const updatedItems = transactionData[itemsField].map(
         (transactionItem) => {
@@ -1203,7 +1221,7 @@ export const deleteTruckData = async (
         }
       );
 
-      const updatedTransactionRef = doc(transactionsRef, transactionDoc.id);
+      const updatedTransactionRef = doc(transactionsRef, transactionId);
       batch.update(updatedTransactionRef, {
         [itemsField]: updatedItems,
       });
@@ -1516,6 +1534,115 @@ export const getProductionRunById = async (id) => {
     }
   } catch (error) {
     console.error("Error fetching Production: ", error.message);
+    throw error;
+  }
+};
+
+export const getRequestById = async (id) => {
+  try {
+    const requestRef = doc(db, "requests", id);
+    const docSnapshot = await getDoc(requestRef);
+    if (docSnapshot.exists()) {
+      const requestData = {
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
+      };
+      return requestData;
+    } else {
+      console.error("Request not found.");
+      throw new Error("Request not found");
+    }
+  } catch (error) {
+    console.error("Error fetching Production: ", error.message);
+    throw error;
+  }
+};
+
+export const rejectMaterialRequest = async (id, user) => {
+  try {
+    const requestRef = doc(db, "requests", id);
+    await updateDoc(requestRef, { status: "rejected", rejectedBy: user.name });
+    return id;
+  } catch (error) {
+    console.error("Error Rejecting Request:", error);
+    throw error;
+  }
+};
+
+export const rejectProductSubmission = async (id, user) => {
+  try {
+    const submissionRef = doc(db, "submissions", id);
+    await updateDoc(submissionRef, { status: "rejected", rejectedBy: user });
+    return id;
+  } catch (error) {
+    console.error("Error Rejecting Submission:", error);
+    throw error;
+  }
+};
+
+export const getSubmissionById = async (id) => {
+  try {
+    const submissionRef = doc(db, "submissions", id);
+    const docSnapshot = await getDoc(submissionRef);
+    if (docSnapshot.exists()) {
+      const submissionData = {
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
+      };
+      return submissionData;
+    } else {
+      console.error("Submission not found.");
+      throw new Error("Submission not found");
+    }
+  } catch (error) {
+    console.error("Error fetching Submission: ", error.message);
+    throw error;
+  }
+};
+
+export const searchTruck = async (truckNumber, status) => {
+  try {
+    const trucksCollection = collection(db, "trucks");
+    const q = query(
+      trucksCollection,
+      where("truckNumber", "==", truckNumber),
+      where("status", "==", status)
+    );
+    const querySnapshot = await getDocs(q);
+    const trucks = [];
+
+    querySnapshot.docs.forEach((snapshot) =>
+      trucks.push({ id: snapshot.id, ...snapshot.data() })
+    );
+    return trucks;
+  } catch (error) {
+    console.error("Error searching for truck:", error.message);
+    throw error;
+  }
+};
+
+export const getStaffById = async (id) => {
+  const staffRef = doc(db, "staffs", id);
+
+  try {
+    const staff = await getDoc(staffRef);
+
+    if (staff.exists()) {
+      return { id, ...staff.data() };
+    } else {
+      throw new Error("Staff Not Found");
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const updateStaff = async (id, payload) => {
+  try {
+    const staffRef = doc(db, "staffs", id);
+    await updateDoc(staffRef, { ...payload, updatedAt: serverTimestamp() });
+  } catch (error) {
+    console.error(`Error updating Staff: ${error}`);
     throw error;
   }
 };

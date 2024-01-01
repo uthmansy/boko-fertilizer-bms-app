@@ -140,7 +140,6 @@ const ReceiveForm = ({ truck, truckId }) => {
     };
     try {
       await receiveTruck(truckId, receivedData, destination);
-      queryClient.invalidateQueries("getAllTransitTrucks");
 
       setModalData({
         isOpen: true,
@@ -330,7 +329,11 @@ const ReceiveForm = ({ truck, truckId }) => {
         <Modal
           modalData={modalData}
           setModalData={setModalData}
-          onClose={() => navigate(`/transit/waybill/${truckId}`)}
+          onClose={() => {
+            navigate(`/transit/waybill/${truckId}`);
+            queryClient.invalidateQueries("getAllTransitTrucks");
+            queryClient.invalidateQueries("getReceivedTrucks");
+          }}
         />
       )}
     </div>

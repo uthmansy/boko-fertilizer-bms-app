@@ -13,6 +13,7 @@ import DefaultTable from "./tables/DefaultTable";
 import SalaryPaymentForm from "./SalaryPaymentForm";
 import PrintDoc from "./PrintDoc";
 import IMAGES from "../assets/images/Images";
+import { companyAddress, companyFullName } from "../constants/company";
 
 const ViewSalary = () => {
   const { id } = useParams();
@@ -39,7 +40,7 @@ const ViewSalary = () => {
         salaryPaymentsIds = salaryPayments.map((payment) => payment.staffId);
       return {
         salary,
-        staffList,
+        staffList: staffList.filter((staff) => staff.status === "active"),
         salaryPayments,
         salaryPaymentsIds,
         totalPaidSalaries,
@@ -77,7 +78,7 @@ const ViewSalary = () => {
         } = payment;
         const category = data.staffList.filter(
           (staff) => staff.id === staffId
-        )[0].category;
+        )[0]?.category;
 
         return {
           staffName,
@@ -221,11 +222,9 @@ const SalaryRecord = ({ tableData }) => {
               <img className='w-24' src={IMAGES.logo} alt='logo' />
 
               <h1 className='font-black text-3xl uppercase text-center'>
-                Boko Fertilizer Payroll
+                {companyFullName} Payroll
               </h1>
-              <div className=''>
-                No.60/61 UNGOGO ROAD KANO, KANO STATE UNGOGO, 700105, Kano
-              </div>
+              <div className=''>{companyAddress}</div>
             </div>
             <DefaultTable
               tableData={payments}

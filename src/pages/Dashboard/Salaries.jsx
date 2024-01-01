@@ -15,8 +15,14 @@ import SalaryPaymentForm from "../../components/SalaryPaymentForm";
 import { useState } from "react";
 import { formatMoney } from "../../util/functions";
 import ViewSalary from "../../components/ViewSalary";
+import { useMenu } from "../../contexts/menuContext";
 
 export default function Salaries() {
+  const { setIsMenuOpen } = useMenu();
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, []);
   return (
     <div>
       <TopNavBar

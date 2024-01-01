@@ -2,9 +2,14 @@ import React, { useState } from "react";
 import { useAuth } from "../contexts/authContext";
 import { createProductionRun } from "../util/crud";
 import Modal from "./Modal";
+import { useQueryClient } from "react-query";
+import { useItems } from "../contexts/itemsContext";
 
 const CreateNewProductionRun = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { items } = useItems();
+
   const [formData, setFormData] = useState({
     date: "",
     finishedProduct: "NPK20:10:10",
@@ -93,6 +98,7 @@ const CreateNewProductionRun = () => {
         message: `Production run with ID ${result} added to Firestore.`,
         isError: false,
       });
+      queryClient.invalidateQueries("getProductionRuns");
     } catch (error) {
       setModalData({
         isOpen: true,
@@ -142,10 +148,15 @@ const CreateNewProductionRun = () => {
             onChange={handleChange}
             className='w-full p-2 border rounded focus:ring-blue-500 focus:border-blue-500'
           >
-            <option value='NPK20:10:10'>NPK20:10:10</option>
-            <option value='NPK20:10:10+s'>NPK20:10:10+s</option>
-            <option value='NPK15:15:15'>NPK15:15:15</option>
-            <option value='NPK15:15:15'>NPK27:13:13</option>
+            {items.map((item, index) => {
+              return (
+                item.type === "product" && (
+                  <option key={index} value={item.name}>
+                    {item.name}
+                  </option>
+                )
+              );
+            })}
           </select>
         </div>
 

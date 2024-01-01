@@ -1,51 +1,57 @@
 import React, { useState } from "react";
-import { NavLink, Route, Routes } from "react-router-dom";
-import InventoryProductionPendingRequests from "../../components/InventoryProductionPendingRequests";
-import InventoryProductionRequests from "../../components/InventoryProductionRequests";
+import { Route, Routes } from "react-router-dom";
 import InventoryProductionReception from "../../components/InventoryProductionReception";
 import InventoryProductionPendingReception from "../../components/InventoryProductionPendingReception";
+import TopNavBar from "../../components/TopNavBar";
+import ViewRawMaterialsRequests from "../../components/ViewRawMaterialsRequests";
+import ButtonPrimary from "../../components/buttons/ButtonPrimary";
+import ProductSubmissionList from "../../components/ProductSubmissionList";
 
 const InventoryProduction = () => {
-	return (
-		<div>
-			<nav className="bg-blue-500 p-4">
-				<nav className="flex space-x-6">
-					<NavLink
-						to="/production"
-						className="text-white border px-3 py-2 rounded-xl hover:bg-white hover:bg-opacity-20 transition-all duration-200 uppercase text-sm">
-						Pending Requests
-					</NavLink>
-					<NavLink
-						to="/production/requests"
-						className="text-white border px-3 py-2 rounded-xl hover:bg-white hover:bg-opacity-20 transition-all duration-200 uppercase text-sm">
-						All Requests
-					</NavLink>
-					<NavLink
-						to="/production/pending-reception"
-						className="text-white border px-3 py-2 rounded-xl hover:bg-white hover:bg-opacity-20 transition-all duration-200 uppercase text-sm">
-						Pending Reception
-					</NavLink>
-					<NavLink
-						to="/production/received"
-						className="text-white border px-3 py-2 rounded-xl hover:bg-white hover:bg-opacity-20 transition-all duration-200 uppercase text-sm">
-						Received
-					</NavLink>
-				</nav>
-			</nav>
+  return (
+    <div>
+      <TopNavBar
+        links={[
+          {
+            path: "",
+            title: "All Requests",
+          },
+          {
+            path: "reception",
+            title: "All Reception",
+          },
+        ]}
+      />
+      <div className=''>
+        <Routes>
+          <Route path='/*' element={<Requests />} />
+          <Route path='/reception/*' element={<ProductSubmissionList />} />
+        </Routes>
+      </div>
+    </div>
+  );
+};
 
-			<div className="p-4 bg-white rounded-md shadow-lg">
-				<Routes>
-					<Route path="/" element={<InventoryProductionPendingRequests />} />
-					<Route path="/requests" element={<InventoryProductionRequests />} />
-					<Route
-						path="/pending-reception"
-						element={<InventoryProductionPendingReception />}
-					/>
-					<Route path="/received" element={<InventoryProductionReception />} />
-				</Routes>
-			</div>
-		</div>
-	);
+const Requests = () => {
+  const [filter, setFilter] = useState(null);
+
+  return (
+    <div>
+      <div className='mb-5 flex space-x-3'>
+        <ButtonPrimary onClick={() => setFilter(null)}>All</ButtonPrimary>
+        <ButtonPrimary onClick={() => setFilter("approved")}>
+          Approved
+        </ButtonPrimary>
+        <ButtonPrimary onClick={() => setFilter("pending")}>
+          Pending
+        </ButtonPrimary>
+        <ButtonPrimary onClick={() => setFilter("rejected")}>
+          Rejected
+        </ButtonPrimary>
+      </div>
+      <ViewRawMaterialsRequests filter={filter} />
+    </div>
+  );
 };
 
 export default InventoryProduction;

@@ -27,6 +27,7 @@ import ButtonPrimary from "./buttons/ButtonPrimary";
 import PrintDoc from "./PrintDoc";
 import IMAGES from "../assets/images/Images";
 import { useMenu } from "../contexts/menuContext";
+import { companyAddress, companyFullName } from "../constants/company";
 
 const AccountingPurchases = () => {
   const { setIsMenuOpen } = useMenu();
@@ -687,11 +688,9 @@ const PrintPage = ({ transaction }) => {
             <img className='w-24' src={IMAGES.logo} alt='logo' />
 
             <h1 className='font-black text-3xl uppercase text-center'>
-              Boko Fertilizer Transaction Record
+              {companyFullName} Transaction Record
             </h1>
-            <div className=''>
-              No.60/61 UNGOGO ROAD KANO, KANO STATE UNGOGO, 700105, Kano
-            </div>
+            <div className=''>{companyAddress}</div>
           </div>
           <div className='mb-5'>
             <div className='w-1/2'></div>

@@ -1,162 +1,250 @@
-import React from "react";
-import { getProductSubmissions } from "../util/crud";
+import React, { useEffect } from "react";
 import { useState } from "react";
-import { useEffect } from "react";
-import Spinner from "./Spinner";
-import Modal from "./Modal";
+import { useInfiniteQuery, useMutation, useQuery } from "react-query";
+import {
+  approveProductReception,
+  getProductSubmissions,
+  getSubmissionById,
+  rejectProductSubmission,
+} from "../util/crud";
+import useSerielData from "../hooks/useSerielData";
+import useMapSubmissions from "../hooks/useMapSubmissions";
+import { Route, Routes, useParams } from "react-router-dom";
+import ButtonPrimary from "./buttons/ButtonPrimary";
+import DefaultTable from "./tables/DefaultTable";
+import { useAuth } from "../contexts/authContext";
+import InfoModal from "./InfoModal";
+import PrintDoc from "./PrintDoc";
+import DocumentHeader from "./DocumentHeader";
 
 function ProductSubmissionList() {
-	const [submissions, setSubmissions] = useState([]);
-	const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
 
-	const [modalData, setModalData] = useState({
-		isOpen: false,
-		message: "",
-		isError: false,
-	});
+  const {
+    isLoading,
+    error,
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    refetch,
+  } = useInfiniteQuery({
+    queryKey: ["getProductSubmissions"],
+    queryFn: ({ pageParam = null }) => getProductSubmissions(pageParam),
+    getNextPageParam: (lastPage) => lastPage.nextPageToken,
+  });
 
-	useEffect(() => {
-		async function fetchProductionSubmissions() {
-			setIsLoading(true);
-			try {
-				const submissions = await getProductSubmissions("all");
-				setSubmissions(submissions);
-			} catch (error) {
-				console.error("Error fetching production submissions:", error);
-				setModalData({
-					isOpen: true,
-					message: `Failed to Load Submission.`,
-					isError: true,
-				});
-			}
-			setIsLoading(false);
-		}
+  const [filter, setFilter] = useState(null);
+  const [serielData, setSerielData] = useSerielData(data, filter);
 
-		fetchProductionSubmissions();
-	}, []);
+  const approveMutation = useMutation({
+    mutationFn: ({ id, productType, user }) =>
+      approveProductReception(id, productType, user.name),
+    onMutate: () => {
+      setOpenModal(true);
+    },
+    onSuccess: (id) => {
+      setSerielData((prev) =>
+        prev.map((submission) => {
+          if (submission.id === id) submission.status = "approved";
+          return submission;
+        })
+      );
+    },
+  });
 
-	return (
-		<div>
-			<h1 className="text-xl font-bold mt-5">All Production Runs</h1>
-			{isLoading ? (
-				<div className="w-full h-20 flex items-center justify-center">
-					<Spinner />
-				</div>
-			) : (
-				<SubmissionsTable submissions={submissions} />
-			)}
-			{modalData.isOpen && (
-				<Modal modalData={modalData} setModalData={setModalData} />
-			)}
-		</div>
-	);
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, user }) => rejectProductSubmission(id, user.name),
+    onMutate: () => {
+      setOpenModal(true);
+    },
+    onSuccess: (id) => {
+      setSerielData((prev) =>
+        prev.map((submission) => {
+          if (submission.id === id) submission.status = "rejected";
+          return submission;
+        })
+      );
+    },
+  });
+
+  const handleApprove = (id, productType) =>
+    approveMutation.mutate({
+      id,
+      productType,
+      user,
+    });
+
+  const handleReject = (id) =>
+    rejectMutation.mutate({
+      id,
+      user,
+    });
+
+  const { submissions, tableHeader } = useMapSubmissions(
+    serielData,
+    handleApprove,
+    handleReject
+  );
+
+  const [openModal, setOpenModal] = useState(false);
+
+  useEffect(() => console.log(submissions), [submissions]);
+
+  return isLoading ? (
+    <div>Loading....</div>
+  ) : error ? (
+    <div>Error Loading Production Runs...</div>
+  ) : (
+    <div>
+      <Routes>
+        <Route
+          path='/*'
+          element={
+            <>
+              <div className='mb-5'>
+                <ButtonPrimary onClick={refetch}>Refresh</ButtonPrimary>
+              </div>
+              <div className='mb-5 flex space-x-3'>
+                <ButtonPrimary onClick={() => setFilter(null)}>
+                  All
+                </ButtonPrimary>
+                <ButtonPrimary onClick={() => setFilter("approved")}>
+                  Approved
+                </ButtonPrimary>
+                <ButtonPrimary onClick={() => setFilter("pending")}>
+                  Pending
+                </ButtonPrimary>
+                <ButtonPrimary onClick={() => setFilter("rejected")}>
+                  Rejected
+                </ButtonPrimary>
+              </div>
+              <DefaultTable tableHeader={tableHeader} tableData={submissions} />
+              {hasNextPage && (
+                <nav className='mt-5 flex items-center justify-center'>
+                  <ButtonPrimary
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetching}
+                  >
+                    {isFetching ? "Loading..." : "Load more"}
+                  </ButtonPrimary>
+                </nav>
+              )}
+            </>
+          }
+        />
+        <Route path='/:id' element={<SubmissionSummary />} />
+      </Routes>
+      {openModal && (
+        <InfoModal close={() => setOpenModal(false)}>
+          {approveMutation.isLoading || rejectMutation.isLoading
+            ? "loading..."
+            : approveMutation.isSuccess || rejectMutation.isSuccess
+            ? "Success"
+            : "Error"}
+        </InfoModal>
+      )}
+    </div>
+  );
 }
 
-const SubmissionsTable = ({ submissions }) => {
-	const [startDate, setStartDate] = useState(null);
-	const [endDate, setEndDate] = useState(null);
+const SubmissionSummary = () => {
+  const { id } = useParams();
 
-	// State for pagination
-	const [currentPage, setCurrentPage] = useState(1);
-	const rowsPerPage = 5; // Number of rows per page
+  const { isLoading, error, data, isFetching } = useQuery(
+    ["getSubmission", id],
+    () => getSubmissionById(id)
+  );
 
-	const filteredSubmissions = submissions.filter(
-		(submission) =>
-			(!startDate || submission.date >= startDate) &&
-			(!endDate || submission.date <= endDate)
-	);
+  return isLoading || isFetching ? (
+    "Loading..."
+  ) : error ? (
+    "Error Loading Request, Please try again"
+  ) : (
+    <PrintDoc>
+      <div className='bg-white p-20'>
+        <DocumentHeader heading='Finished Product Submission' />
+        <div className='font-medium text-gray-500 uppercase tracking-wider mb-20'>
+          <p>Submission Date:</p>
+          <div>{data.date}</div>
+        </div>
+        <div>
+          <div className='font-medium text-gray-500 uppercase tracking-wider mb-5'>
+            <p>Submitted By:</p>
+            <div>{data.submitterName}</div>
+          </div>
+          <div className='font-medium text-gray-500 uppercase tracking-wider mb-20'>
+            <p className='mb-7'>Signature & Stamp:</p>
+            <div className='w-[300px] border-b border-black'></div>
+          </div>
+        </div>
 
-	// Calculate the total number of pages
-	const totalPages = Math.ceil(filteredSubmissions.length / rowsPerPage);
-
-	// Get the current page of data
-	const currentSubmissions = filteredSubmissions.slice(
-		(currentPage - 1) * rowsPerPage,
-		currentPage * rowsPerPage
-	);
-	return (
-		<div>
-			{/* Filter Table */}
-			<div className="flex flex-col lg:flex-row justify-between bg-gray-100 p-4 rounded-md mb-4">
-				<div className="mb-4 lg:mb-0">
-					<label className="block mb-2 font-bold text-gray-700">
-						Start Date:
-					</label>
-					<input
-						type="date"
-						value={startDate}
-						onChange={(e) => setStartDate(e.target.value)}
-						className="w-full p-2 border rounded-md"
-					/>
-				</div>
-				<div className="mb-4 lg:mb-0">
-					<label className="block mb-2 font-bold text-gray-700">
-						End Date:
-					</label>
-					<input
-						type="date"
-						value={endDate}
-						onChange={(e) => setEndDate(e.target.value)}
-						className="w-full p-2 border rounded-md"
-					/>
-				</div>
-			</div>
-
-			{/* submission Runs Table */}
-			<table className="min-w-full bg-white shadow-md rounded my-6">
-				<thead>
-					<tr className="bg-indigo-500 text-white">
-						<th className="py-2 px-4">Date</th>
-						<th className="py-2 px-4">Product</th>
-						<th className="py-2 px-4">Quantity</th>
-						<th className="py-2 px-4">Submitter Name</th>
-						<th className="py-2 px-4">Status</th>
-					</tr>
-				</thead>
-				<tbody>
-					{currentSubmissions.map((submission) => (
-						<tr key={submission.id} className="border-b border-gray-200">
-							<td className="py-2 px-4">{submission.date}</td>
-							<td className="py-2 px-4">{submission.productType}</td>
-							<td className="py-2 px-4">{submission.quantity} bags</td>
-							<td className="py-2 px-4">{submission.submitterName}</td>
-							<td className="py-2 px-4">
-								{submission.status === "pending" ? (
-									<span className="bg-yellow-400 rounded-full text-xs p-2">
-										pending
-									</span>
-								) : (
-									<span className="bg-green-400 rounded-full text-xs p-2">
-										approved
-									</span>
-								)}
-							</td>
-						</tr>
-					))}
-				</tbody>
-			</table>
-
-			{/* Pagination */}
-			<div className="flex justify-between items-center">
-				<button
-					onClick={() => setCurrentPage(currentPage - 1)}
-					disabled={currentPage === 1}
-					className="px-4 py-2 text-white bg-indigo-500 rounded-md">
-					Previous
-				</button>
-				<span>
-					{" "}
-					Page {currentPage} of {totalPages}{" "}
-				</span>
-				<button
-					onClick={() => setCurrentPage(currentPage + 1)}
-					disabled={currentPage === totalPages}
-					className="px-4 py-2 text-white bg-indigo-500 rounded-md">
-					Next
-				</button>
-			</div>
-		</div>
-	);
+        {data.approver && (
+          <div>
+            <div className='font-medium text-gray-500 uppercase tracking-wider mb-5'>
+              <p>Received By:</p>
+              <div>{data.approver}</div>
+            </div>
+            <div className='font-medium text-gray-500 uppercase tracking-wider mb-20'>
+              <p className='mb-7'>Signature & Stamp:</p>
+              <div className='w-[300px] border-b border-black'></div>
+            </div>
+          </div>
+        )}
+        {data.rejectedBy && (
+          <div>
+            <div className='font-medium text-gray-500 uppercase tracking-wider mb-5'>
+              <p>Rejected By:</p>
+              <div>{data.rejectedBy}</div>
+            </div>
+            <div className='font-medium text-gray-500 uppercase tracking-wider mb-20'>
+              <p className='mb-7'>Signature & Stamp:</p>
+              <div className='w-[300px] border-b border-black'></div>
+            </div>
+          </div>
+        )}
+        <div className='w-full mb-20'>
+          <p className='text-xs font-medium text-gray-500 uppercase tracking-wider mb-5'>
+            Product Submitted
+          </p>
+          <table class=' w-full border border-gray-500 text-xs text-left text-gray-500 '>
+            <thead>
+              <tr class=' border-b border-gray-500 bg-gray-500'>
+                <td
+                  scope='row'
+                  class='px-2 border-r border-gray-500 py-2 font-medium text-white whitespace-nowrap '
+                >
+                  Item
+                </td>
+                <td class='px-2 py-2 capitalize border-r border-gray-500 text-white'>
+                  Quantity Bags
+                </td>
+                <td class='px-2 py-2 capitalize border-r border-gray-500 text-white'>
+                  Quantity Mts
+                </td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class=' border-b border-gray-500'>
+                <td
+                  scope='row'
+                  class='px-2 bg-gray-100 border-r border-gray-500 py-2 font-medium text-gray-900 whitespace-nowrap '
+                >
+                  {data.productType}
+                </td>
+                <td class='px-2 py-2 capitalize border-r border-gray-500'>
+                  {data.quantity}
+                </td>
+                <td class='px-2 py-2 capitalize border-r border-gray-500'>
+                  {(data.quantity * 50) / 1000}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </PrintDoc>
+  );
 };
 
 export default ProductSubmissionList;

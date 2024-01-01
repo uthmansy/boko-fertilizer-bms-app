@@ -1,4 +1,9 @@
 import IMAGES from "../assets/images/Images";
+import {
+  companyAddress,
+  companyFullName,
+  waybillStoreKeeperPhone,
+} from "../constants/company";
 import { formatTimestamp } from "../util/functions";
 
 export default function DeliveryWaybill({ payload }) {
@@ -31,7 +36,7 @@ export default function DeliveryWaybill({ payload }) {
     <div className='p-10 w-[795px] bg-white relative'>
       <div className='absolute flex items-center justify-center h-full w-full top-0 left-0 right-0 bottom-0'>
         <span className='uppercase font-bold text-6xl scale-150 rotate-45 opacity-20'>
-          BOKO FERTILIZER
+          {companyFullName}
         </span>
       </div>
       <div
@@ -40,11 +45,9 @@ export default function DeliveryWaybill({ payload }) {
         <img className='w-24' src={IMAGES.logo} alt='logo' />
 
         <h1 className='font-black text-3xl uppercase text-center'>
-          Boko Fertilizer {isSale ? "Dispatch" : "Delivery"} Waybill
+          {companyFullName} {isSale ? "Dispatch" : "Delivery"} Waybill
         </h1>
-        <div className=''>
-          No.60/61 UNGOGO ROAD KANO, KANO STATE UNGOGO, 700105, Kano
-        </div>
+        <div className=''>{companyAddress}</div>
       </div>
       <div className='flex mb-5 space-x-10'>
         {!isSale && (
@@ -54,9 +57,7 @@ export default function DeliveryWaybill({ payload }) {
               {!isSale && (
                 <div className='flex space-x-3 mb-2 text-xs'>
                   <span className='font-bold'>Address: </span>
-                  <div className='flex-grow'>
-                    No.60/61 UNGOGO ROAD KANO, KANO STATE UNGOGO, 700105, Kano
-                  </div>
+                  <div className='flex-grow'>{companyAddress}</div>
                 </div>
               )}
               {!isSale && (
@@ -68,7 +69,7 @@ export default function DeliveryWaybill({ payload }) {
               {!isSale && (
                 <div className='flex space-x-3 mb-2 text-xs'>
                   <span className='font-bold'>Receiver Contact: </span>
-                  <div className='flex-grow'>09025555166</div>
+                  <div className='flex-grow'>{waybillStoreKeeperPhone}</div>
                 </div>
               )}
             </div>
@@ -134,7 +135,7 @@ export default function DeliveryWaybill({ payload }) {
               </td>
               <td class='px-2 py-2'>
                 {origin != "Others" ? origin : otherOrigin}{" "}
-                {origin === "Boko Fertilizer" && "Warehouse"}
+                {origin === companyFullName && "Warehouse"}
               </td>
             </tr>
             <tr class=' border-b border-gray-500 dark:bg-gray-800'>

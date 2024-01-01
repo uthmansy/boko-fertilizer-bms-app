@@ -1,6 +1,9 @@
 import { format } from "date-fns-tz";
 import { Timestamp } from "firebase/firestore";
 import { DateTime } from "luxon";
+import { getAllStaffs } from "./crud";
+import { Link } from "react-router-dom";
+import { companyFullName, companyShortCode } from "../constants/company";
 
 export const generateWaybillNumber = ({
   origin,
@@ -17,14 +20,14 @@ export const generateWaybillNumber = ({
   const codeMappings = {
     origin: {
       "Port Harcourt": "PH",
-      "Boko Fertilizer": "BKF",
+      [companyFullName]: companyShortCode,
       Lagos: "LG",
       Abuja: "AB",
       Others: "OTH",
       // Add more mappings as needed
     },
     destination: {
-      "Boko Fertilizer": "BKF",
+      [companyFullName]: companyShortCode,
       Others: "OTH",
       // Add more mappings as needed
     },
@@ -152,4 +155,44 @@ export const disableArrowKeys = (event) => {
 
 export const disableScroll = (event) => {
   event.currentTarget.blur();
+};
+
+export const fetchAllStaffs = async () => {
+  try {
+    const result = await getAllStaffs();
+    const mappedResult = result.map((staff) => {
+      const {
+        name,
+        jobDescription,
+        salaryAmount,
+        id,
+        status,
+        phoneNumber,
+        accountNumber,
+        category,
+      } = staff;
+      const data = {
+        name,
+        phoneNumber: phoneNumber || "NILL",
+        accountNumber: accountNumber || "NILL",
+        category: category || "salary",
+        jobDescription,
+        status: status || "active",
+        salaryAmount: formatMoney(salaryAmount),
+        edit: (
+          <Link
+            to={`edit/${id}`}
+            className='hover:underline bg-blue-500 p-2 px-3 text-white w-full inline-block text-center'
+          >
+            Edit
+          </Link>
+        ),
+      };
+
+      return data;
+    });
+    return mappedResult;
+  } catch (error) {
+    throw error;
+  }
 };

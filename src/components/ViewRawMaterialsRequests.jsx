@@ -1,319 +1,327 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/authContext";
 import { format } from "date-fns";
-import { getAllRequestsFromFirestore } from "../util/crud";
-import Spinner from "./Spinner";
+import { useInfiniteQuery, useMutation, useQuery } from "react-query";
+import {
+  approveProductionRequest,
+  getAllMaterialRequests,
+  getRequestById,
+  rejectMaterialRequest,
+} from "../util/crud";
+import ButtonPrimary from "./buttons/ButtonPrimary";
+import { Link, Route, Routes, useParams } from "react-router-dom";
+import DefaultTable from "./tables/DefaultTable";
 import { formatTimestamp } from "../util/functions";
+import PrintDoc from "./PrintDoc";
+import DocumentHeader from "./DocumentHeader";
+import InfoModal from "./InfoModal";
 
-const ViewRawMaterialRequests = () => {
-	const { user } = useAuth();
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState(null);
-	const [requests, setRequests] = useState([]);
-	const [filteredRequests, setFilteredRequests] = useState([]); // Initialize with all requests
-	const [startDateFilter, setStartDateFilter] = useState("");
-	const [endDateFilter, setEndDateFilter] = useState("");
-	const [statusFilter, setStatusFilter] = useState("all");
-	const [currentPage, setCurrentPage] = useState(1);
-	const [requestsPerPage] = useState(10);
-	const [isFiltering, setIsFiltering] = useState(false);
-	const [selectedRequest, setSelectedRequest] = useState(null);
+const ViewRawMaterialRequests = ({ filter = null }) => {
+  const { user } = useAuth();
 
-	// Function to fetch requests from Firestore
-	const fetchRequests = async () => {
-		try {
-			const fetchedRequests = await getAllRequestsFromFirestore();
-			setRequests(fetchedRequests);
-			setError(null);
-			// Initialize filteredRequests with all requests
-			setFilteredRequests(fetchedRequests);
-		} catch (error) {
-			setError(error.message);
-		} finally {
-			setLoading(false);
-		}
-	};
+  const [serielData, setSerielData] = useState([]);
+  const [allRequests, setAllRequests] = useState([]);
+  const [openModal, setOpenModal] = useState(false);
 
-	useEffect(() => {
-		fetchRequests();
-	}, []); // This will run once when the component mounts
+  const approveMutation = useMutation({
+    mutationFn: ({ id, user }) => approveProductionRequest(id, user),
+    onMutate: () => {
+      setOpenModal(true);
+    },
+    onSuccess: (id) => {
+      setSerielData((prev) =>
+        prev.map((request) => {
+          if (request.id === id) request.status = "approved";
+          return request;
+        })
+      );
+    },
+  });
 
-	// Function to apply filters
-	const applyFilters = () => {
-		let filtered = requests;
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, user }) => rejectMaterialRequest(id, user),
+    onMutate: () => {
+      setOpenModal(true);
+    },
+    onSuccess: (id) => {
+      setSerielData((prev) =>
+        prev.map((request) => {
+          if (request.id === id) request.status = "rejected";
+          return request;
+        })
+      );
+    },
+  });
 
-		if (startDateFilter) {
-			filtered = filtered.filter(
-				(request) => new Date(request.requestDate) >= new Date(startDateFilter)
-			);
-		}
+  const fetchRequests = async ({ pageParam = null }) => {
+    try {
+      const result = await getAllMaterialRequests(pageParam);
 
-		if (endDateFilter) {
-			filtered = filtered.filter(
-				(request) => new Date(request.requestDate) <= new Date(endDateFilter)
-			);
-		}
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  };
 
-		if (statusFilter !== "all") {
-			filtered = filtered.filter((request) => request.status === statusFilter);
-		}
+  const {
+    isLoading,
+    error,
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    refetch,
+  } = useInfiniteQuery({
+    queryKey: ["getMaterialRequests"],
+    queryFn: fetchRequests,
+    getNextPageParam: (lastPage, pages) => lastPage.nextPageToken,
+  });
 
-		setFilteredRequests(filtered);
-		setCurrentPage(1);
-		setIsFiltering(true);
-	};
+  useEffect(() => {
+    console.log(allRequests);
+  }, [allRequests]);
 
-	// Function to remove filters
-	const removeFilters = () => {
-		setStartDateFilter("");
-		setEndDateFilter("");
-		setStatusFilter("all");
-		setIsFiltering(false);
-		// Reset filteredRequests to include all requests
-		setFilteredRequests(requests);
-		setCurrentPage(1);
-	};
+  useEffect(() => {
+    if (data) {
+      let serielData = [];
 
-	// Handle date filter changes
-	useEffect(() => {
-		if (isFiltering) {
-			applyFilters();
-		}
-	}, [startDateFilter, endDateFilter, statusFilter, requests, isFiltering]);
+      data.pages.forEach((page) => {
+        page.data.forEach((data) => serielData.push(data));
+      });
+      setSerielData(serielData);
+    }
+  }, [data]);
 
-	// Function to view the summary of a request
-	const viewSummary = (request) => {
-		setSelectedRequest(request);
-	};
+  useEffect(() => {
+    filter
+      ? setAllRequests(serielData.filter((data) => data.status === filter))
+      : setAllRequests(serielData);
+  }, [filter, serielData]);
 
-	// Function to go back to the table view
-	const goBack = () => {
-		setSelectedRequest(null);
-	};
+  useEffect(() => {
+    let filteredData = serielData;
 
-	// Function to print the summary
-	const printSummary = () => {
-		window.print();
-	};
+    if (filter) {
+      filteredData = serielData.filter((request) => request.status === filter);
+    }
 
-	// Pagination
-	const indexOfLastRequest = currentPage * requestsPerPage;
-	const indexOfFirstRequest = indexOfLastRequest - requestsPerPage;
-	const currentRequests = filteredRequests.slice(
-		indexOfFirstRequest,
-		indexOfLastRequest
-	);
+    const mappedResult = filteredData.map((request) => {
+      const { id, requestDate, requester, approver, rawMaterials, status } =
+        request;
+      const data = {
+        requestDate: formatTimestamp(requestDate),
+        requester,
+        approver: approver || "Not Yet Approved",
+        rawMaterials: rawMaterials.map((material, index) => (
+          <li key={index} className=''>
+            {material.material}: {material.quantity}
+          </li>
+        )),
+        status: (
+          <div
+            className={`bg-${
+              status === "approved"
+                ? "green"
+                : status === "pending"
+                ? "blue"
+                : "red"
+            }-500 rounded-full  text-white uppercase p-2 flex items-center bg-o justify-center`}
+          >
+            {status}
+          </div>
+        ),
+        viewButton: (
+          <ButtonPrimary>
+            <Link to={id}>View</Link>
+          </ButtonPrimary>
+        ),
+      };
 
-	return (
-		<div className="max-w-screen-xl mx-auto p-4 bg-white rounded-lg shadow-md">
-			<h2 className="text-2xl font-semibold mb-4">Raw Material Requests</h2>
-			{!selectedRequest && ( // Hide filter area when viewing the summary
-				<div className="mb-6 flex space-x-4">
-					<div className="w-1/4">
-						<label className="block text-sm font-medium text-gray-700">
-							Start Date
-						</label>
-						<input
-							type="date"
-							className="mt-1 p-2 w-full border rounded-md"
-							value={startDateFilter}
-							onChange={(e) => setStartDateFilter(e.target.value)}
-						/>
-					</div>
-					<div className="w-1/4">
-						<label className="block text-sm font-medium text-gray-700">
-							End Date
-						</label>
-						<input
-							type="date"
-							className="mt-1 p-2 w-full border rounded-md"
-							value={endDateFilter}
-							onChange={(e) => setEndDateFilter(e.target.value)}
-						/>
-					</div>
-					<div className="w-1/4">
-						<label className="block text-sm font-medium text-gray-700">
-							Status
-						</label>
-						<select
-							value={statusFilter}
-							onChange={(e) => setStatusFilter(e.target.value)}
-							className="mt-1 p-2 w-full border rounded-md">
-							<option value="all">All</option>
-							<option value="pending">Pending</option>
-							<option value="approved">Approved</option>
-							<option value="rejected">Rejected</option>
-						</select>
-					</div>
-					<div className="w-1/4 flex items-end">
-						<button
-							onClick={applyFilters}
-							className="w-full py-2 bg-blue-500 text-white rounded-md hover-bg-blue-600 focus:outline-none">
-							Apply Filters
-						</button>
-					</div>
-				</div>
-			)}
-			{isFiltering && (
-				<div className="mb-4">
-					<button
-						onClick={removeFilters}
-						className="bg-red-500 text-white px-4 py-2 rounded-md">
-						Remove Filters
-					</button>
-				</div>
-			)}
-			{loading && (
-				<div className="h-20 w-full flex items-center justify-center">
-					<Spinner />
-				</div>
-			)}
-			{error && (
-				<div className="text-center text-red-600">
-					<p>Error: {error}</p>
-					<button
-						onClick={fetchRequests}
-						className="py-2 bg-blue-500 text-white rounded-md hover-bg-blue-600 focus:outline-none">
-						Refresh
-					</button>
-				</div>
-			)}
-			{selectedRequest ? (
-				<div>
-					{/* Display summary of the selected request */}
-					<p className="text-2xl font-semibold mb-4">Request Summary</p>
-					<div className="mb-4">
-						<button
-							onClick={goBack}
-							className="bg-blue-500 text-white px-4 py-2 rounded-md">
-							Go Back
-						</button>
-					</div>
-					{/* Print button added to the summary section */}
-					<div className="mb-4">
-						<button
-							onClick={printSummary}
-							className="bg-green-500 text-white px-4 py-2 rounded-md">
-							Print Summary
-						</button>
-					</div>
-					{/* Display the summary of the selected request here */}
-					<div className="bg-gray-100 p-4 rounded-md">
-						<p>Requester: {selectedRequest.requester}</p>
-						<p>Request Date: {formatTimestamp(selectedRequest.requestDate)}</p>
-						<p>Status: {selectedRequest.status}</p>
-						<p>Raw Materials Requested:</p>
-						<ul>
-							{selectedRequest.rawMaterials.map((material, index) => (
-								<li key={index}>
-									{material.material}: {material.quantity}
-								</li>
-							))}
-						</ul>
-					</div>
-				</div>
-			) : (
-				<div>
-					{currentRequests.length > 0 ? (
-						<div>
-							<table className="min-w-full divide-y divide-gray-200">
-								<thead>
-									<tr>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-											Requester
-										</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-											Request Date
-										</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-											Status
-										</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-											Quantity Requested
-										</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-											Actions
-										</th>
-									</tr>
-								</thead>
-								<tbody>
-									{currentRequests.map((request, index) => (
-										<tr
-											key={index}
-											className={index % 2 === 0 ? "bg-gray-50" : ""}>
-											<td className="px-6 py-2 text-sm whitespace-nowrap">
-												{request.requester}
-											</td>
-											<td className="px-6 py-2 text-sm whitespace-nowrap">
-												{formatTimestamp(request.requestDate)}
-											</td>
-											<td className="px-6 py-2 text-sm whitespace-nowrap">
-												{request.status === "pending" ? (
-													<span className="bg-yellow-400 text-white px-3 py-2 text-xs rounded-full">
-														{request.status}
-													</span>
-												) : request.status === "approved" ? (
-													<span className="bg-green-400 text-white rounded-full text-xs inline-block py-2 px-3">
-														{request.status}
-													</span>
-												) : (
-													<span className="bg-red-400 text-white rounded-full text-xs inline-block py-2 px-3">
-														{request.status}
-													</span>
-												)}
-											</td>
-											<td className="px-6 py-2 text-sm whitespace-nowrap">
-												{request.rawMaterials.map((material, index) => (
-													<p key={index}>
-														{material.material}: {material.quantity}
-													</p>
-												))}
-											</td>
-											<td className="px-6 py-2 text-sm whitespace-nowrap">
-												<button
-													onClick={() => viewSummary(request)}
-													className="py-2 px-2 bg-blue-500 text-white rounded-md hover-bg-blue-600 focus:outline-none">
-													View Summary
-												</button>
-											</td>
-										</tr>
-									))}
-								</tbody>
-							</table>
-							<div className="mt-4">
-								<ul className="flex space-x-2">
-									{Array.from(
-										{
-											length: Math.ceil(
-												filteredRequests.length / requestsPerPage
-											),
-										},
-										(_, i) => (
-											<li key={i}>
-												<button
-													onClick={() => setCurrentPage(i + 1)}
-													className={`${
-														i + 1 === currentPage
-															? "bg-blue-500 text-white px-3 py-1 rounded-full"
-															: "bg-gray-300 text-gray-600 px-3 py-1 rounded-full"
-													}`}>
-													{i + 1}
-												</button>
-											</li>
-										)
-									)}
-								</ul>
-							</div>
-						</div>
-					) : (
-						<p className="text-center text-gray-500">
-							No requests match the selected filters.
-						</p>
-					)}
-				</div>
-			)}
-		</div>
-	);
+      if (user.role === "inventory")
+        data.action = status === "pending" && (
+          <div className='flex space-x-2'>
+            <ButtonPrimary
+              onClick={() => approveMutation.mutate({ id, user })}
+              classes={"bg-green-500"}
+            >
+              Approve
+            </ButtonPrimary>
+            <ButtonPrimary
+              onClick={() => rejectMutation.mutate({ id, user })}
+              classes={"bg-red-500"}
+            >
+              Reject
+            </ButtonPrimary>
+          </div>
+        );
+
+      return data;
+    });
+
+    setAllRequests(mappedResult);
+  }, [serielData, filter]);
+
+  const tableHeader = [
+    "SN",
+    "Date",
+    "Requester",
+    "Approver",
+    "Materials Requested",
+    "Status",
+    "View",
+  ];
+  if (user.role === "inventory") tableHeader.push("Action");
+
+  return isLoading ? (
+    <div>Loading....</div>
+  ) : error ? (
+    <div>Error Loading Production Requests...</div>
+  ) : (
+    <div>
+      <Routes>
+        <Route
+          path='/*'
+          element={
+            <>
+              <div>
+                <ButtonPrimary onClick={refetch}>Refresh</ButtonPrimary>
+              </div>
+              <DefaultTable tableHeader={tableHeader} tableData={allRequests} />
+              {hasNextPage && (
+                <nav className='mt-5 flex items-center justify-center'>
+                  <ButtonPrimary
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetching}
+                  >
+                    {isFetching ? "Loading..." : "Load more"}
+                  </ButtonPrimary>
+                </nav>
+              )}
+            </>
+          }
+        />
+        <Route path='/:id' element={<RequestSummary />} />
+      </Routes>
+      {openModal && (
+        <InfoModal close={() => setOpenModal(false)}>
+          {approveMutation.isLoading || rejectMutation.isLoading
+            ? "loading..."
+            : approveMutation.isSuccess || rejectMutation.isSuccess
+            ? "Success"
+            : "Error"}
+        </InfoModal>
+      )}
+    </div>
+  );
+};
+
+const RequestSummary = () => {
+  const { id } = useParams();
+  const fetchRequest = async () => {
+    try {
+      const result = await getRequestById(id);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const { isLoading, error, data, isFetching } = useQuery(
+    ["getRequest", id],
+    fetchRequest
+  );
+
+  return isLoading || isFetching ? (
+    "Loading..."
+  ) : error ? (
+    "Error Loading Request, Please try again"
+  ) : (
+    <PrintDoc>
+      <div className='bg-white p-20'>
+        <DocumentHeader heading='Raw Material Request' />
+        <div className='font-medium text-gray-500 uppercase tracking-wider mb-20'>
+          <p>Date:</p>
+          <div>{formatTimestamp(data.requestDate)}</div>
+        </div>
+        <div>
+          <div className='font-medium text-gray-500 uppercase tracking-wider mb-5'>
+            <p>Requested By:</p>
+            <div>{data.requester}</div>
+          </div>
+          <div className='font-medium text-gray-500 uppercase tracking-wider mb-20'>
+            <p className='mb-7'>Signature & Stamp:</p>
+            <div className='w-[300px] border-b border-black'></div>
+          </div>
+        </div>
+
+        {data.approver && (
+          <div>
+            <div className='font-medium text-gray-500 uppercase tracking-wider mb-5'>
+              <p>Approved By:</p>
+              <div>{data.approver}</div>
+            </div>
+            <div className='font-medium text-gray-500 uppercase tracking-wider mb-20'>
+              <p className='mb-7'>Signature & Stamp:</p>
+              <div className='w-[300px] border-b border-black'></div>
+            </div>
+          </div>
+        )}
+        {data.rejectedBy && (
+          <div>
+            <div className='font-medium text-gray-500 uppercase tracking-wider mb-5'>
+              <p>Rejected By:</p>
+              <div>{data.rejectedBy}</div>
+            </div>
+            <div className='font-medium text-gray-500 uppercase tracking-wider mb-20'>
+              <p className='mb-7'>Signature & Stamp:</p>
+              <div className='w-[300px] border-b border-black'></div>
+            </div>
+          </div>
+        )}
+        <div className='w-full mb-20'>
+          <p className='text-xs font-medium text-gray-500 uppercase tracking-wider mb-5'>
+            Raw Materials Requested
+          </p>
+          <table class=' w-full border border-gray-500 text-xs text-left text-gray-500 '>
+            <thead>
+              <tr class=' border-b border-gray-500 bg-gray-500'>
+                <td
+                  scope='row'
+                  class='px-2 border-r border-gray-500 py-2 font-medium text-white whitespace-nowrap '
+                >
+                  Item
+                </td>
+                <td class='px-2 py-2 capitalize border-r border-gray-500 text-white'>
+                  Quantity Bags
+                </td>
+                <td class='px-2 py-2 capitalize border-r border-gray-500 text-white'>
+                  Quantity Mts
+                </td>
+              </tr>
+            </thead>
+            <tbody>
+              {data?.rawMaterials.map((item, index) => (
+                <tr key={index} class=' border-b border-gray-500'>
+                  <td
+                    scope='row'
+                    class='px-2 bg-gray-100 border-r border-gray-500 py-2 font-medium text-gray-900 whitespace-nowrap '
+                  >
+                    {item.material}
+                  </td>
+                  <td class='px-2 py-2 capitalize border-r border-gray-500'>
+                    {item.quantity}
+                  </td>
+                  <td class='px-2 py-2 capitalize border-r border-gray-500'>
+                    {(item.quantity * 50) / 1000}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </PrintDoc>
+  );
 };
 
 export default ViewRawMaterialRequests;
