@@ -36,25 +36,45 @@ const AccountingPurchases = () => {
     setIsMenuOpen(false);
   }, []);
 
+  const { user } = useAuth();
+
   return (
-    <div>
-      <TopNavBar
-        links={[
-          {
-            path: "/purchases/",
-            title: "Create New",
-          },
-          {
-            path: "/purchases/all",
-            title: "All Purchases",
-          },
-        ]}
-      />
-      <Routes>
-        <Route exact path='/*' element={<CreateNew />} />
-        <Route exact path='/all/*' element={<AllPurchases />} />
-      </Routes>
-    </div>
+    <>
+      {user.role === "admin" ? (
+        <div>
+          <TopNavBar
+            links={[
+              {
+                path: "/purchases/",
+                title: "Create New",
+              },
+              {
+                path: "/purchases/all",
+                title: "All Purchases",
+              },
+            ]}
+          />
+          <Routes>
+            <Route exact path='/*' element={<CreateNew />} />
+            <Route exact path='/all/*' element={<AllPurchases />} />
+          </Routes>
+        </div>
+      ) : (
+        <div>
+          <TopNavBar
+            links={[
+              {
+                path: "/purchases/all",
+                title: "All Purchases",
+              },
+            ]}
+          />
+          <Routes>
+            <Route exact path='/all/*' element={<AllPurchases />} />
+          </Routes>
+        </div>
+      )}
+    </>
   );
 };
 

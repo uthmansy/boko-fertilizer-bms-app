@@ -963,7 +963,7 @@ export const getDispatchTransactions = async (
       transactionsQuery = query(
         transactionsCollection,
         where("pickUpLocation", "==", pickUpLocation),
-        orderBy("createdAt", "desc")
+        orderBy("date", "desc")
       );
     }
 
@@ -971,7 +971,7 @@ export const getDispatchTransactions = async (
       transactionsQuery = query(
         transactionsCollection,
         where("status", "==", status),
-        orderBy("createdAt", "desc")
+        orderBy("date", "desc")
       );
     }
 
@@ -980,7 +980,7 @@ export const getDispatchTransactions = async (
         transactionsCollection,
         where("status", "==", status),
         where("pickUpLocation", "==", pickUpLocation),
-        orderBy("createdAt", "desc")
+        orderBy("date", "desc")
       );
     }
 

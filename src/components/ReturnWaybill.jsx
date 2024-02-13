@@ -1,5 +1,5 @@
 import IMAGES from "../assets/images/Images";
-import { companyAddress } from "../constants/company";
+import { companyAddress, companyFullName } from "../constants/company";
 import { formatTimestamp } from "../util/functions";
 
 function ReturnWaybill({ payload }) {
@@ -29,14 +29,14 @@ function ReturnWaybill({ payload }) {
     <div className='p-10 w-[795px] bg-white relative'>
       <div className='absolute flex items-center justify-center h-full w-full top-0 left-0 right-0 bottom-0'>
         <span className='uppercase font-bold text-6xl scale-150 rotate-45 opacity-10'>
-          companyFullName
+          {companyFullName}
         </span>
       </div>
       <div className='mb-10 flex items-center flex-col'>
         <img className='w-24' src={IMAGES.logo} alt='logo' />
 
         <h1 className='font-black text-3xl uppercase text-center'>
-          companyFullName Return Waybill
+          {companyFullName} Return Waybill
         </h1>
         <div className=''>{companyAddress}</div>
       </div>

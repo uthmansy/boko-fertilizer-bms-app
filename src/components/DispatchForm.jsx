@@ -282,6 +282,7 @@ function DispatchForm() {
           .map((transaction) => ({
             orderNumber: transaction.orderNumber,
             type: transaction.type,
+            date: transaction.date,
             beneficiary:
               transaction.type === "sale"
                 ? transaction.buyerName
@@ -353,6 +354,8 @@ function DispatchForm() {
                   <option value=''>Select an order</option>
                   {orders?.map((order, index) => (
                     <option key={index} value={order.orderNumber}>
+                      {order.date} {order.beneficiary || ""}
+                      {"   "}
                       {order.orderNumber}
                     </option>
                   ))}

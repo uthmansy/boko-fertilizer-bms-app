@@ -35,30 +35,54 @@ import {
 
 const AccountingSales = () => {
   const { setIsMenuOpen } = useMenu();
+  const { user } = useAuth();
 
   useEffect(() => {
     setIsMenuOpen(false);
   }, []);
 
   return (
-    <div>
-      <TopNavBar
-        links={[
-          {
-            path: "",
-            title: "Create New",
-          },
-          {
-            path: "all",
-            title: "All Sales",
-          },
-        ]}
-      />
-      <Routes>
-        <Route exact path='/*' element={<CreateNew />} />
-        <Route exact path='/all/*' element={<AllSales />} />
-      </Routes>
-    </div>
+    <>
+      {user.role === "admin" ? (
+        <div>
+          <TopNavBar
+            links={[
+              {
+                path: "",
+                title: "Create New",
+              },
+              {
+                path: "all",
+                title: "All Sales",
+              },
+            ]}
+          />
+          <Routes>
+            <Route exact path='/*' element={<CreateNew />} />
+            <Route exact path='/all/*' element={<AllSales />} />
+          </Routes>
+        </div>
+      ) : (
+        <div>
+          <TopNavBar
+            links={[
+              {
+                path: "all",
+                title: "All Sales",
+              },
+            ]}
+          />
+          <Routes>
+            <Route
+              exact
+              path='/*'
+              element={<div>Click On "All Sales" Above</div>}
+            />
+            <Route exact path='/all/*' element={<AllSales />} />
+          </Routes>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -481,6 +505,8 @@ function TransactionSummary() {
 
   const { transactionId } = useParams();
 
+  const { user } = useAuth();
+
   useEffect(() => {
     try {
       const fetchTransaction = async () => {
@@ -674,11 +700,15 @@ function TransactionSummary() {
                 )}
               </tbody>
             </table>
-            {transaction?.status != "completed" && (
-              <AddPaymentForm
-                transactionId={transactionId}
-                setModalData={setModalData}
-              />
+            {user.role === "admin" && (
+              <>
+                {transaction?.status != "completed" && (
+                  <AddPaymentForm
+                    transactionId={transactionId}
+                    setModalData={setModalData}
+                  />
+                )}
+              </>
             )}
             {modalData.isOpen && (
               <Modal
